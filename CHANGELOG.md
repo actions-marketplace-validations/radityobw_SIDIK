@@ -2,6 +2,13 @@
 
 Seluruh perubahan penting pada paket `sidik` (sebelumnya `sidik-security`) didokumentasikan pada berkas ini.
 
+## [1.3.5] - 2026-11-25
+
+### Diperbaiki
+- **Bug *Search Placeholder* saat Ganti Bahasa di GUI ([`sidik/gui.py`](sidik/gui.py)):** Memperbaiki `_set_search_placeholder()` dan `_apply_filters()` agar teks *placeholder* pencarian bahasa sebelumnya tidak dianggap sebagai kata kunci filter aktif ketika pengguna mengganti bahasa (`ID <-> EN`), yang sebelumnya menyembunyikan seluruh baris tabel (`Showing 0 of N findings`).
+- **Pesan Kosong Akurat saat Filter Aktif ([`sidik/i18n.py`](sidik/i18n.py)):** Menambahkan `msg_no_filter_match` sehingga tabel kosong akibat pencarian/filter menampilkan petunjuk `Reset Filter` dengan jumlah total temuan, bukan pesan `Clean!`.
+- **Tata Letak Baris *Preset* GUI:** Merapikan *padding* dan pengelompokan tombol *preset* agar tidak terpotong di sebelah kanan pada resolusi 1280px.
+
 ## [1.3.4] - 2026-11-25
 
 ### Ditambahkan & Ditingkatkan (PyPI Global DX & Hardening)

@@ -29,7 +29,19 @@ from sidik.dependency_analyzer.database import get_user_cache_dir
 from sidik.models import ScanReport, Finding
 from sidik.plugins import get_plugin
 from sidik.reporting.formatter import ReportFormatter
-from sidik.i18n import t, set_language, get_current_language, get_secret_remediation, get_dependency_remediation
+from sidik.i18n import (
+    SUPPORTED_LANGUAGES,
+    get_current_language,
+    get_dependency_remediation,
+    get_secret_remediation,
+    set_language,
+    t,
+)
+
+
+def _all_search_placeholders() -> set[str]:
+    """Returns lowercased search placeholder strings across all supported UI languages."""
+    return {t("search_placeholder", lang=lng).strip().lower() for lng in SUPPORTED_LANGUAGES}
 
 
 def _has_repo_datasets() -> bool:
@@ -1192,86 +1204,64 @@ class SecurityAnalyzerGUI:
                  font=("Segoe UI", 8, "bold")).pack(side="left", padx=(0, 6))
 
         cwd_path = self._initial_target
+        has_repo_sets = _has_repo_datasets()
+        pill_pad = 14 if has_repo_sets else 22
+
         self.btn_preset_cwd = RoundedPillButton(
             preset_row, text=t("preset_cwd"),
             command=lambda: self._set_preset(
                 cwd_path, sec=True, dep=True, active_btn=self.btn_preset_cwd),
-            height=28, pad_x=22, bg_parent=COLORS["card"],
+            height=28, pad_x=pill_pad, bg_parent=COLORS["card"],
             fill_color=COLORS["card"], hover_color="#1a2540",
             border_color=COLORS["card_border"], text_color=COLORS["fg2"],
             font=("Segoe UI", 8), is_active=True)
-        self.btn_preset_cwd.pack(side="left", padx=3)
+        self.btn_preset_cwd.pack(side="left", padx=2)
+        self._preset_buttons = [self.btn_preset_cwd]
 
-        self.btn_preset_cwd_sec = RoundedPillButton(
-            preset_row, text=t("preset_cwd_sec"),
-            command=lambda: self._set_preset(
-                cwd_path, sec=True, dep=False, active_btn=self.btn_preset_cwd_sec),
-            height=28, pad_x=22, bg_parent=COLORS["card"],
-            fill_color=COLORS["card"], hover_color="#1a2540",
-            border_color=COLORS["card_border"], text_color=COLORS["fg2"],
-            font=("Segoe UI", 8))
-        self.btn_preset_cwd_sec.pack(side="left", padx=3)
-
-        self.btn_preset_cwd_dep = RoundedPillButton(
-            preset_row, text=t("preset_cwd_dep"),
-            command=lambda: self._set_preset(
-                cwd_path, sec=False, dep=True, active_btn=self.btn_preset_cwd_dep),
-            height=28, pad_x=22, bg_parent=COLORS["card"],
-            fill_color=COLORS["card"], hover_color="#1a2540",
-            border_color=COLORS["card_border"], text_color=COLORS["fg2"],
-            font=("Segoe UI", 8))
-        self.btn_preset_cwd_dep.pack(side="left", padx=3)
-
-        self._preset_buttons = [
-            self.btn_preset_cwd,
-            self.btn_preset_cwd_sec,
-            self.btn_preset_cwd_dep,
-        ]
-
-        if _has_repo_datasets():
+        if has_repo_sets:
             self.btn_preset_sec = RoundedPillButton(
                 preset_row, text=t("preset_secrets"),
                 command=lambda: self._set_preset(
                     os.path.join(BASE_DIR, "dataset", "secrets", "test"),
                     sec=True, dep=False, active_btn=self.btn_preset_sec),
-                height=28, pad_x=22, bg_parent=COLORS["card"],
+                height=28, pad_x=pill_pad, bg_parent=COLORS["card"],
                 fill_color=COLORS["card"], hover_color="#1a2540",
                 border_color=COLORS["card_border"], text_color=COLORS["fg2"],
                 font=("Segoe UI", 8))
-            self.btn_preset_sec.pack(side="left", padx=3)
+            self.btn_preset_sec.pack(side="left", padx=2)
 
             self.btn_preset_dep = RoundedPillButton(
                 preset_row, text=t("preset_deps"),
                 command=lambda: self._set_preset(
                     os.path.join(BASE_DIR, "dataset", "dependencies_v2", "test"),
                     sec=False, dep=True, active_btn=self.btn_preset_dep),
-                height=28, pad_x=22, bg_parent=COLORS["card"],
+                height=28, pad_x=pill_pad, bg_parent=COLORS["card"],
                 fill_color=COLORS["card"], hover_color="#1a2540",
                 border_color=COLORS["card_border"], text_color=COLORS["fg2"],
                 font=("Segoe UI", 8))
-            self.btn_preset_dep.pack(side="left", padx=3)
+            self.btn_preset_dep.pack(side="left", padx=2)
 
             self.btn_preset_ext_sec = RoundedPillButton(
                 preset_row, text=t("preset_external_sec"),
                 command=lambda: self._set_preset(
                     os.path.join(BASE_DIR, "dataset", "external", "_repos"),
                     sec=True, dep=False, active_btn=self.btn_preset_ext_sec),
-                height=28, pad_x=22, bg_parent=COLORS["card"],
+                height=28, pad_x=pill_pad, bg_parent=COLORS["card"],
                 fill_color=COLORS["card"], hover_color="#1a2540",
                 border_color=COLORS["card_border"], text_color=COLORS["fg2"],
                 font=("Segoe UI", 8))
-            self.btn_preset_ext_sec.pack(side="left", padx=3)
+            self.btn_preset_ext_sec.pack(side="left", padx=2)
 
             self.btn_preset_ext_full = RoundedPillButton(
                 preset_row, text=t("preset_external_full"),
                 command=lambda: self._set_preset(
                     os.path.join(BASE_DIR, "dataset", "external", "_repos"),
                     sec=True, dep=True, active_btn=self.btn_preset_ext_full),
-                height=28, pad_x=22, bg_parent=COLORS["card"],
+                height=28, pad_x=pill_pad, bg_parent=COLORS["card"],
                 fill_color=COLORS["card"], hover_color="#1a2540",
                 border_color=COLORS["card_border"], text_color=COLORS["fg2"],
                 font=("Segoe UI", 8))
-            self.btn_preset_ext_full.pack(side="left", padx=3)
+            self.btn_preset_ext_full.pack(side="left", padx=2)
 
             self._preset_buttons.extend([
                 self.btn_preset_sec,
@@ -1279,17 +1269,39 @@ class SecurityAnalyzerGUI:
                 self.btn_preset_ext_sec,
                 self.btn_preset_ext_full,
             ])
+        else:
+            self.btn_preset_cwd_sec = RoundedPillButton(
+                preset_row, text=t("preset_cwd_sec"),
+                command=lambda: self._set_preset(
+                    cwd_path, sec=True, dep=False, active_btn=self.btn_preset_cwd_sec),
+                height=28, pad_x=pill_pad, bg_parent=COLORS["card"],
+                fill_color=COLORS["card"], hover_color="#1a2540",
+                border_color=COLORS["card_border"], text_color=COLORS["fg2"],
+                font=("Segoe UI", 8))
+            self.btn_preset_cwd_sec.pack(side="left", padx=2)
+
+            self.btn_preset_cwd_dep = RoundedPillButton(
+                preset_row, text=t("preset_cwd_dep"),
+                command=lambda: self._set_preset(
+                    cwd_path, sec=False, dep=True, active_btn=self.btn_preset_cwd_dep),
+                height=28, pad_x=pill_pad, bg_parent=COLORS["card"],
+                fill_color=COLORS["card"], hover_color="#1a2540",
+                border_color=COLORS["card_border"], text_color=COLORS["fg2"],
+                font=("Segoe UI", 8))
+            self.btn_preset_cwd_dep.pack(side="left", padx=2)
+
+            self._preset_buttons.extend([self.btn_preset_cwd_sec, self.btn_preset_cwd_dep])
 
         self.btn_preset_root = RoundedPillButton(
             preset_row, text=t("preset_root"),
             command=lambda: self._set_preset(
                 os.path.join(BASE_DIR, "sidik"),
                 sec=True, dep=True, active_btn=self.btn_preset_root),
-            height=28, pad_x=22, bg_parent=COLORS["card"],
+            height=28, pad_x=pill_pad, bg_parent=COLORS["card"],
             fill_color=COLORS["card"], hover_color="#1a2540",
             border_color=COLORS["card_border"], text_color=COLORS["fg2"],
             font=("Segoe UI", 8))
-        self.btn_preset_root.pack(side="left", padx=3)
+        self.btn_preset_root.pack(side="left", padx=2)
         self._preset_buttons.append(self.btn_preset_root)
 
         opt_row = tk.Frame(ctrl_card, bg=COLORS["card"])
@@ -1671,23 +1683,26 @@ class SecurityAnalyzerGUI:
         self.status_bar.configure(text=f"Target path preset loaded: {path}")
 
     def _set_search_placeholder(self):
-        if not self.search_var.get():
+        placeholders = _all_search_placeholders()
+        cur = self.search_var.get().strip().lower()
+        if not cur or cur in placeholders:
             self.search_entry.delete(0, tk.END)
             self.search_entry.insert(0, t("search_placeholder"))
             self.search_entry.configure(fg=COLORS["fg3"])
 
-            def _fi(e):
-                if self.search_entry.get() == t("search_placeholder"):
-                    self.search_entry.delete(0, tk.END)
-                    self.search_entry.configure(fg=COLORS["fg"])
+        def _fi(_e):
+            if self.search_entry.get().strip().lower() in _all_search_placeholders():
+                self.search_entry.delete(0, tk.END)
+                self.search_entry.configure(fg=COLORS["fg"])
 
-            def _fo(e):
-                if not self.search_entry.get():
-                    self.search_entry.insert(0, t("search_placeholder"))
-                    self.search_entry.configure(fg=COLORS["fg3"])
+        def _fo(_e):
+            if not self.search_entry.get().strip():
+                self.search_entry.delete(0, tk.END)
+                self.search_entry.insert(0, t("search_placeholder"))
+                self.search_entry.configure(fg=COLORS["fg3"])
 
-            self.search_entry.bind("<FocusIn>",  _fi)
-            self.search_entry.bind("<FocusOut>", _fo)
+        self.search_entry.bind("<FocusIn>", _fi)
+        self.search_entry.bind("<FocusOut>", _fo)
 
     def _on_tile_clicked(self, severity_key: str):
         """Filters table by clicked severity tile."""
@@ -1719,7 +1734,7 @@ class SecurityAnalyzerGUI:
             return
 
         kw = self.search_var.get().strip().lower()
-        if kw == t("search_placeholder").lower():
+        if kw in _all_search_placeholders():
             kw = ""
 
         sev_filter = self.combo_sev.get().strip()
@@ -1781,7 +1796,7 @@ class SecurityAnalyzerGUI:
             self._on_select_finding(None)
         else:
             self.detail_text.delete("1.0", tk.END)
-            self.detail_text.insert("1.0", t("msg_clean"))
+            self.detail_text.insert("1.0", t("msg_no_filter_match", total=len(self.all_findings)))
 
     # ==========================================
     # CLIPBOARD ACTIONS (SINGLE, MULTI-SELECT, & ALL VISIBLE FLAGS)

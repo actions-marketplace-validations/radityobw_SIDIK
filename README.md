@@ -8,10 +8,10 @@
 *Unified Offline Static Application Security Testing (SAST) & Software Composition Analysis (SCA) for Python*
 
 [![Python 3.9+](https://img.shields.io/badge/Python-3.9%2B-3b82f6.svg)](#)
-[![Version v1.3.4](https://img.shields.io/badge/Version-v1.3.4-0ea5e9.svg)](#)
+[![Version v1.3.5](https://img.shields.io/badge/Version-v1.3.5-0ea5e9.svg)](#)
 [![Plugin API](https://img.shields.io/badge/Plugin%20API-sidik.plugins-8b5cf6.svg)](#)
 [![Offline OSV DB](https://img.shields.io/badge/Offline%20OSV%20DB-29%2C208%20Advisories-10b981.svg)](#)
-[![Unit Tests](https://img.shields.io/badge/Unit%20Tests-70%2F70%20Passing-22c55e.svg)](#)
+[![Unit Tests](https://img.shields.io/badge/Unit%20Tests-71%2F71%20Passing-22c55e.svg)](#)
 [![License: MIT](https://img.shields.io/badge/License-MIT-a855f7.svg)](#)
 
 </div>
@@ -104,7 +104,7 @@ SIDIK/
 │   └── generate_charts.py             # Generator grafik publikasi (300 DPI) & bundel visualisasi GUI
 ├── figures/                           # Grafik hasil eksperimen (Paper & Dark-Theme GUI Bundle)
 ├── results/                           # Rekaman JSON hasil eksperimen & benchmark komparatif
-├── tests/                             # Suite pengujian otomatis (70 unit & integration tests)
+├── tests/                             # Suite pengujian otomatis (71 unit & integration tests)
 ├── CHANGELOG.md                       # Riwayat rilis paket sidik
 ├── LICENSE                            # Lisensi MIT
 ├── pyproject.toml                     # Konfigurasi paket, dependencies, & entry points sidik/sidik-gui
@@ -225,9 +225,9 @@ sidik --target . --enable-ml --ml-model path/ke/model.skops
 sidik -i --enable-ml
 ```
 
-### 5. Menjalankan 70 *Unit Test* & Eksperimen *Benchmark*
+### 5. Menjalankan 71 *Unit Test* & Eksperimen *Benchmark*
 ```bash
-# Jalankan seluruh 63 unit & integration tests
+# Jalankan seluruh 71 unit & integration tests
 python -m unittest discover tests -v
 
 # Jalankan eksperimen & buat ulang seluruh grafik riset
@@ -242,7 +242,7 @@ python experiments/generate_charts.py
 # Jalankan lewat GitHub Container Registry (tanpa instalasi Python lokal)
 docker run --rm -v "${PWD}:/workspace" ghcr.io/radityobw/sidik:latest --target /workspace --format console
 
-# Atau jalankan langsung dari PyPI (`pip install "sidik[gui]"`) atau aset .whl pada GitHub Releases v1.3.4
+# Atau jalankan langsung dari PyPI (`pip install "sidik[gui]"`) atau aset .whl pada GitHub Releases v1.3.5
 ```
 
 ---
@@ -251,7 +251,7 @@ docker run --rm -v "${PWD}:/workspace" ghcr.io/radityobw/sidik:latest --target /
 
 | Repositori | Peran Utama | Versi Terkini | Tautan |
 | :--- | :--- | :---: | :--- |
-| **SIDIK** | Mesin pemindai deterministik SAST & OSV SCA + host *plugin* UI | `v1.3.4` | [`github.com/radityobw/SIDIK`](https://github.com/radityobw/SIDIK) |
+| **SIDIK** | Mesin pemindai deterministik SAST & OSV SCA + host *plugin* UI | `v1.3.5` | [`github.com/radityobw/SIDIK`](https://github.com/radityobw/SIDIK) |
 | **SIDIK-ML** | Perangkat lunak ekstensi *Explainable Non-ANN ML* & *plugin* | `v0.5.4` | [`github.com/radityobw/SIDIK-ML`](https://github.com/radityobw/SIDIK-ML) |
 
 > **Publikasi Ilmiah:** Artikel penelitian deterministik awal telah diterbitkan di [*Jurnal Media Akademik (JMA)*](https://jurnal.mediaakademik.com/index.php/jma/article/view/9068/6647).
@@ -319,7 +319,7 @@ sidik . --baseline .sidik-baseline.json --fail-on high
 sidik --list-plugins
 sidik --target . --enable-ml --ml-model path/to/model.skops
 
-# 4. Run full regression suite (70 tests)
+# 4. Run full regression suite (71 tests)
 python -m unittest discover tests -v
 
 # 5. Run via GitHub Container Registry (ghcr.io)
@@ -334,7 +334,7 @@ docker run --rm -v "${PWD}:/workspace" ghcr.io/radityobw/sidik:latest --target /
 
 | Repository | Primary Role | Latest Version | Link |
 | :--- | :--- | :---: | :--- |
-| **SIDIK** | Deterministic SAST & OSV SCA core + UI plugin host | `v1.3.4` | [`github.com/radityobw/SIDIK`](https://github.com/radityobw/SIDIK) |
+| **SIDIK** | Deterministic SAST & OSV SCA core + UI plugin host | `v1.3.5` | [`github.com/radityobw/SIDIK`](https://github.com/radityobw/SIDIK) |
 | **SIDIK-ML** | Explainable Non-ANN ML extension & `sidik.plugins` adapter | `v0.5.4` | [`github.com/radityobw/SIDIK-ML`](https://github.com/radityobw/SIDIK-ML) |
 
 > **Scientific Publication:** The foundational deterministic study is published in [*Jurnal Media Akademik (JMA)*](https://jurnal.mediaakademik.com/index.php/jma/article/view/9068/6647).

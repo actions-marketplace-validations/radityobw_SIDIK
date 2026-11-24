@@ -45,8 +45,8 @@ TRANSLATIONS: Dict[str, Dict[str, str]] = {
         "en": "- Explainable Non-ANN ML False Positive Reduction (Python)"
     },
     "app_version": {
-        "id": "v1.3.4 (Deterministic Edition)",
-        "en": "v1.3.4 (Deterministic Edition)"
+        "id": "v1.3.5 (Deterministic Edition)",
+        "en": "v1.3.5 (Deterministic Edition)"
     },
     "lang_toggle_btn": {
         "id": "English (EN)",
@@ -397,6 +397,10 @@ TRANSLATIONS: Dict[str, Dict[str, str]] = {
     "msg_clean": {
         "id": "[OK] Tidak ditemukan kerentanan atau kebocoran kredensial pada target.",
         "en": "[OK] Clean! No security issues or hardcoded secrets detected in target."
+    },
+    "msg_no_filter_match": {
+        "id": "[i] Tidak ada temuan yang cocok dengan pencarian/filter aktif (dari {total} total temuan). Klik 'Reset Filter' untuk menampilkan semua temuan.",
+        "en": "[i] No findings match the active search or filter criteria ({total} total findings). Click 'Reset Filter' to view all findings."
     },
     "msg_findings_prompt": {
         "id": "[i] Ditemukan {count} temuan keamanan. Klik salah satu baris temuan pada tabel di atas untuk meninjau detail teknis & rekomendasi perbaikan.",

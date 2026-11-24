@@ -260,6 +260,63 @@ lint = [{include-group = "base"}, "jinja2==3.0.0"]
             self.assertTrue(os.path.isfile(os.path.join(tmp, info["scan_id"], "fig_master_bundle.png")))
             self.assertTrue(_get_scans_output_root())
 
+    def test_gui_language_toggle_preserves_findings_and_updates_placeholder(self):
+        try:
+            import tkinter as tk
+            from sidik.gui import SecurityAnalyzerGUI
+            from sidik.i18n import set_language, t
+            root = tk.Tk()
+        except Exception as exc:
+            self.skipTest(f"Tkinter display unavailable: {exc}")
+        root.withdraw()
+        try:
+            set_language("id")
+            app = SecurityAnalyzerGUI(root, enable_ml=True, app_brand="SIDIK-ML")
+            app.all_findings = [
+                Finding(
+                    id="SEC-1",
+                    finding_type="secret",
+                    category="API_KEY",
+                    title="AWS Key",
+                    description="Exposed AWS key",
+                    file_path="app.py",
+                    line_number=1,
+                    severity=SeverityLevel.CRITICAL,
+                    confidence=ConfidenceScore.HIGH,
+                ),
+                Finding(
+                    id="DEP-1",
+                    finding_type="dependency",
+                    category="VULNERABLE_DEPENDENCY",
+                    title="Vulnerable requests",
+                    description="CVE demo",
+                    file_path="requirements.txt",
+                    line_number=1,
+                    severity=SeverityLevel.MEDIUM,
+                    confidence=ConfidenceScore.HIGH,
+                ),
+            ]
+            app._apply_filters()
+            self.assertEqual(len(app.visible_findings), 2)
+
+            app._toggle_language()
+            self.assertEqual(app.search_var.get(), t("search_placeholder", lang="en"))
+            self.assertEqual(len(app.visible_findings), 2)
+
+            app._toggle_language()
+            self.assertEqual(app.search_var.get(), t("search_placeholder", lang="id"))
+            self.assertEqual(len(app.visible_findings), 2)
+
+            app.search_var.set("nonexistent_filter_token_xyz")
+            app._apply_filters()
+            self.assertEqual(len(app.visible_findings), 0)
+            detail_msg = app.detail_text.get("1.0", tk.END)
+            self.assertIn("Reset Filter", detail_msg)
+            self.assertNotIn("Tidak ditemukan kerentanan", detail_msg)
+        finally:
+            set_language("id")
+            root.destroy()
+
 
 if __name__ == "__main__":
     unittest.main()
