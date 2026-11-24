@@ -8,6 +8,8 @@
 *Unified Offline Static Application Security Testing (SAST) & Software Composition Analysis (SCA) for Python*
 
 [![Python 3.9+](https://img.shields.io/badge/Python-3.9%2B-3b82f6.svg)](#)
+[![Version v1.2.0](https://img.shields.io/badge/Version-v1.2.0-0ea5e9.svg)](#)
+[![Plugin API](https://img.shields.io/badge/Plugin%20API-sidik.plugins-8b5cf6.svg)](#)
 [![Offline OSV DB](https://img.shields.io/badge/Offline%20OSV%20DB-29%2C208%20Advisories-10b981.svg)](#)
 [![Unit Tests](https://img.shields.io/badge/Unit%20Tests-62%2F62%20Passing-22c55e.svg)](#)
 [![License: MIT](https://img.shields.io/badge/License-MIT-a855f7.svg)](#)
@@ -70,7 +72,8 @@ SIDIK/
 │   ├── core.py                        # Orkestrator SecurityScanner (SAST + SCA terpadu)
 │   ├── gui.py                         # Antarmuka Desktop GUI High-DPI & Visualisasi Riset
 │   ├── i18n.py                        # Mesin lokalisasi dwibahasa (ID/EN) & kamus remediasi
-│   ├── models.py                      # Struktur data (Finding, ScanSummary, ScanReport)
+│   ├── models.py                      # Struktur data (SecretCandidate, Finding, ScanReport)
+│   ├── plugins.py                     # Kontrak plugin terdekupel entry_points (sidik.plugins)
 │   ├── data/
 │   │   └── pypi_advisories.json       # Basis data luring 29.208 advisori OSV (8.038 paket PyPI)
 │   ├── secret_detector/               # Subsistem deteksi kredensial rahasia 3 lapis
@@ -101,7 +104,10 @@ SIDIK/
 │   └── generate_charts.py             # Generator grafik publikasi (300 DPI) & bundel visualisasi GUI
 ├── figures/                           # Grafik hasil eksperimen (Paper & Dark-Theme GUI Bundle)
 ├── results/                           # Rekaman JSON hasil eksperimen & benchmark komparatif
-├── tests/                             # Suite pengujian otomatis (58 unit & integration tests)
+├── tests/                             # Suite pengujian otomatis (62 unit & integration tests)
+├── CHANGELOG.md                       # Riwayat rilis paket sidik-security
+├── LICENSE                            # Lisensi MIT
+├── pyproject.toml                     # Konfigurasi paket, dependencies, & entry points sidik/sidik-gui
 ├── action.yml                         # Definisi komposit GitHub Actions untuk integrasi CI/CD
 ├── sidik.py                           # Peluncur universal (GUI, Interactive CLI, & One-Shot CLI)
 ├── run_sidik.bat                      # Peluncur cepat Desktop GUI (Windows)
@@ -220,6 +226,17 @@ python experiments/generate_charts.py
 
 ---
 
+## 🗺️ Peta Ekosistem Empat Repositori
+
+| Repositori | Peran Utama | Versi Terkini | Tautan |
+| :--- | :--- | :---: | :--- |
+| **SIDIK** | Mesin pemindai deterministik SAST & OSV SCA + host *plugin* UI | `v1.2.0` | [`github.com/radityobw/SIDIK`](https://github.com/radityobw/SIDIK) |
+| **SIDIK-paper** | Arsip manuskrip ilmiah & presentasi instrumen deterministik | `v1.0.0` | [`github.com/radityobw/SIDIK-paper`](https://github.com/radityobw/SIDIK-paper) |
+| **SIDIK-ML** | Perangkat lunak ekstensi *Explainable Non-ANN ML* & *plugin* | `v0.4.0` | [`github.com/radityobw/SIDIK-ML`](https://github.com/radityobw/SIDIK-ML) |
+| **SIDIK-ML-paper** | Arsip riset, dataset kurasi, eksperimen, & manuskrip ML | `main` | [`github.com/radityobw/SIDIK-ML-paper`](https://github.com/radityobw/SIDIK-ML-paper) |
+
+---
+
 # 🇬🇧 English
 
 ## 📌 Project Overview
@@ -241,6 +258,8 @@ By combining **12 curated regular expression rules**, **Shannon entropy verifica
 3. **Triple-Interface Ecosystem & 7 Report Formats:**
    - Operates via **One-Shot CLI** (`python -m sidik`, `--install-hook`, `--fail-on`, GitHub Action `action.yml`), **Interactive CLI Menu** (`python sidik.py --cli`), and **High-DPI Bilingual Desktop GUI** (`python sidik.py --gui`).
    - Exports findings to **ANSI Console**, **OASIS SARIF v2.1.0**, **GitHub Actions Annotations**, **Standalone HTML Dashboard**, **Markdown**, **JSON**, and **CSV**.
+4. **Decoupled Plugin Architecture (`sidik.plugins`):**
+   - Exposes standard `importlib.metadata.entry_points(group="sidik.plugins")` hooks and the leak-safe `SecretCandidate` contract so external extensions like [`SIDIK-ML`](https://github.com/radityobw/SIDIK-ML) enrich CLI, TUI, GUI, and reports without adding ML dependencies to `sidik-security`.
 
 ---
 
@@ -252,3 +271,47 @@ By combining **12 curated regular expression rules**, **Shannon entropy verifica
 | **2. Multi-Manifest PyPI SCA v2** | `N=200` balanced entries across `39` test manifests (5 formats) | **100/100 TP (Precision 1.00, Recall 1.00, F1 1.00)** in **0.33s** | Outperforms Trivy (`35/100 TP`, `F1 0.5185`, `132.00s`) and `pip-audit` (`0/17 TP` on `N=37` unpinned `requirements.txt`) |
 | **3. Controlled Secret Ablation** | `N=100` Python files (`50` positive, `50` negative traps) | **0 FP, 45 TP (Precision 1.00, Recall 0.90, F1 0.9474, MCC 0.9045)** | Context filter eliminates all **10 FPs** produced by regex-only baseline (`F1 0.8572`) |
 | **4. Memory & Resource Profile** | `tracemalloc` across all benchmarks | **0.15 - 0.91 MB** active scan RAM/repo (avg **0.39 MB**; **1.58 MB** combined 25 repos) | Transparently reports **116.47 MB** one-time initialization for loading the `29,208`-record OSV JSON index |
+
+---
+
+## 🚀 Quick Start
+
+```bash
+# 1. Create and activate virtual environment (recommended)
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1          # Windows PowerShell
+# source .venv/bin/activate           # Linux / macOS
+
+# 2. Install SIDIK with GUI support (plus optional SIDIK-ML plugin)
+pip install -e ".[gui]"
+# pip install -e ..\SIDIK-ML
+
+# 3. Launch Desktop GUI, Interactive TUI, or One-Shot CLI
+sidik-gui
+sidik -i --lang en
+sidik --target . --format html --output audit_report.html --lang en
+
+# 4. Run with optional SIDIK-ML triage plugin (when installed)
+sidik --list-plugins
+sidik --target . --enable-ml --ml-model path/to/model.skops
+
+# 5. Run full regression suite (62 tests)
+python -m unittest discover tests -v
+```
+
+> **Windows PowerShell Note:** Inside `.venv\Scripts` without prior `.\Activate.ps1`, prefix commands with `.\` (e.g., `.\sidik -i` or `.\sidik-gui`) or invoke via `python -m sidik ...`.
+
+---
+
+## 🗺️ Four-Repository Ecosystem Map
+
+| Repository | Primary Role | Latest Version | Link |
+| :--- | :--- | :---: | :--- |
+| **SIDIK** | Deterministic SAST & OSV SCA core + UI plugin host | `v1.2.0` | [`github.com/radityobw/SIDIK`](https://github.com/radityobw/SIDIK) |
+| **SIDIK-paper** | Original deterministic research manuscripts & slides | `v1.0.0` | [`github.com/radityobw/SIDIK-paper`](https://github.com/radityobw/SIDIK-paper) |
+| **SIDIK-ML** | Explainable Non-ANN ML extension & `sidik.plugins` adapter | `v0.4.0` | [`github.com/radityobw/SIDIK-ML`](https://github.com/radityobw/SIDIK-ML) |
+| **SIDIK-ML-paper** | ML research datasets, Non-ANN experiments, & manuscripts | `main` | [`github.com/radityobw/SIDIK-ML-paper`](https://github.com/radityobw/SIDIK-ML-paper) |
+
+## 📄 License
+
+Distributed under the **MIT License**. See [LICENSE](LICENSE).
