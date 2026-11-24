@@ -2,6 +2,13 @@
 
 Seluruh perubahan penting pada paket `sidik` (sebelumnya `sidik-security`) didokumentasikan pada berkas ini.
 
+## [1.3.7] - 2026-11-25
+
+### Ditingkatkan (Arsitektur *Zero Version Drift* & *Live Metadata*)
+- ***Single Source of Truth* (`sidik/_version.py`):** Menyatukan sumber versi pada `sidik/_version.py` dan konfigurasi `[tool.setuptools.dynamic]` di [`pyproject.toml`](pyproject.toml), sehingga `sidik.__version__`, metadata paket, GUI/i18n (`app_version`), serta *unit test* selalu sinkron otomatis.
+- **Tab *About* GUI & `action.yml` Dinamis ([`database.py`](sidik/dependency_analyzer/database.py), [`i18n.py`](sidik/i18n.py), [`action.yml`](action.yml)):** Menambahkan `peek_db_summary_counts()` agar tab *About* GUI membaca jumlah aktual advisori dan paket OSV secara *live* (`35.304` advisori / `13.734` paket pada rilis ini), sekaligus memperbarui deskripsi menjadi `7` format manifes/*lockfile* dan `30` fitur statis `SIDIK-ML`.
+- ***Live* PyPI/*Release*/CI *Badges* (`README.md`) & Uji Sinkronisasi:** Mengganti angka versi/statis lintas repo di [`README.md`](README.md) dengan *badge* dinamis PyPI, *GitHub Release*, dan CI, serta menambahkan asersi sinkronisasi versi/`CHANGELOG.md`/`i18n` di [`test_v11_contract.py`](tests/test_v11_contract.py).
+
 ## [1.3.6] - 2026-11-25
 
 ### Ditingkatkan (Cakupan CVE OSV PyPI & Akurasi *Severity*)

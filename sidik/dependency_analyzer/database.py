@@ -5,6 +5,7 @@ from importlib import resources
 import json
 import logging
 import os
+import re
 import sys
 from typing import List, Dict, Any, Optional, Tuple
 from sidik.dependency_analyzer.parsers import normalize_package_name
@@ -15,6 +16,8 @@ logger = logging.getLogger(__name__)
 DEFAULT_DB_PATH = os.path.join(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "pypi_advisories.json"
 )
+_DB_META_ADV_RE = re.compile(r'"advisory_count"\s*:\s*(\d+)')
+_DB_META_PKG_RE = re.compile(r'"package_count"\s*:\s*(\d+)')
 
 
 def get_user_cache_dir() -> str:
@@ -34,6 +37,49 @@ def get_user_cache_dir() -> str:
 def get_user_db_path() -> str:
     """Returns the user-writable OSV advisory database cache path."""
     return os.path.join(get_user_cache_dir(), "pypi_advisories.json")
+
+
+def _extract_header_counts(head_text: str, builtin_count: int) -> Optional[Tuple[int, int]]:
+    adv_m = _DB_META_ADV_RE.search(head_text)
+    pkg_m = _DB_META_PKG_RE.search(head_text)
+    if adv_m and pkg_m:
+        return int(adv_m.group(1)) + builtin_count, int(pkg_m.group(1))
+    return None
+
+
+def peek_db_summary_counts() -> Tuple[int, int]:
+    """Reads OSV advisory and package counts from the active DB header without parsing full JSON."""
+    builtin_count = len(BUILTIN_ADVISORIES)
+    user_db = get_user_db_path()
+    if os.path.isfile(user_db):
+        try:
+            with open(user_db, "r", encoding="utf-8", errors="ignore") as fh:
+                parsed = _extract_header_counts(fh.read(4096), builtin_count)
+                if parsed is not None:
+                    return parsed
+        except OSError:
+            pass
+
+    try:
+        res = resources.files("sidik.data").joinpath("pypi_advisories.json")
+        if res.is_file():
+            with res.open("r", encoding="utf-8", errors="ignore") as fh:
+                parsed = _extract_header_counts(fh.read(4096), builtin_count)
+                if parsed is not None:
+                    return parsed
+    except (ModuleNotFoundError, FileNotFoundError, OSError):
+        pass
+
+    if os.path.isfile(DEFAULT_DB_PATH):
+        try:
+            with open(DEFAULT_DB_PATH, "r", encoding="utf-8", errors="ignore") as fh:
+                parsed = _extract_header_counts(fh.read(4096), builtin_count)
+                if parsed is not None:
+                    return parsed
+        except OSError:
+            pass
+
+    return builtin_count, len({a["package"] for a in BUILTIN_ADVISORIES})
 
 
 # Curated offline advisory database of real CVEs across ubiquitous Python libraries

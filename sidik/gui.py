@@ -862,11 +862,11 @@ class SecurityAnalyzerGUI:
         self._initial_target = initial_target or os.getcwd()
         self.ml_plugin = get_plugin("sidik-ml")
         self._sidik_version = SIDIK_VERSION
-        self._ml_version = str(getattr(self.ml_plugin, "version", "0.5.0")) if self.ml_plugin is not None else None
+        self._ml_version = str(getattr(self.ml_plugin, "version", "unknown")) if self.ml_plugin is not None else None
         self.is_ml_edition = bool((app_brand and "ml" in app_brand.lower()) or enable_ml)
 
         if self.is_ml_edition:
-            ml_v = self._ml_version or "0.5.0"
+            ml_v = self._ml_version or "unknown"
             self.root.title(
                 f"SIDIK-ML v{ml_v} (Core SIDIK v{SIDIK_VERSION}) - Explainable Non-ANN ML False Positive Reduction"
             )
@@ -1089,7 +1089,7 @@ class SecurityAnalyzerGUI:
         self.subtitle_lbl.pack(anchor="w")
 
         if self.is_ml_edition:
-            ver_text = f"SIDIK-ML v{self._ml_version or '0.5.0'}  |  Core v{self._sidik_version}"
+            ver_text = f"SIDIK-ML v{self._ml_version or 'unknown'}  |  Core v{self._sidik_version}"
             ver_fg = "#fcd34d"
         else:
             ver_text = f"v{self._sidik_version}  Deterministic Edition"

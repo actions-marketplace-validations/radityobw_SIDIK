@@ -236,7 +236,7 @@ def run_interactive_cli(
     """Runs the interactive SIDIK CLI Window / Terminal User Interface (TUI)."""
     _enable_windows_ansi()
     ml_plugin = get_plugin("sidik-ml")
-    ml_ver = str(getattr(ml_plugin, "version", "0.5.0")) if ml_plugin is not None else "0.5.0"
+    ml_ver = str(getattr(ml_plugin, "version", "unknown")) if ml_plugin is not None else "unknown"
     is_ml_mode = bool((banner_title and "ml" in banner_title.lower()) or enable_ml_plugin)
     app_label = "SIDIK-ML" if is_ml_mode else (banner_title or "SIDIK CLI")
     if sys.platform == "win32":

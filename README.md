@@ -7,12 +7,12 @@
 **Instrumen Analisis Keamanan Statis (*SAST*) & Analisis Komposisi Perangkat Lunak (*SCA*) Luring Terpadu untuk Ekosistem Python**  
 *Unified Offline Static Application Security Testing (SAST) & Software Composition Analysis (SCA) for Python*
 
-[![Python 3.9+](https://img.shields.io/badge/Python-3.9%2B-3b82f6.svg)](#)
-[![Version v1.3.6](https://img.shields.io/badge/Version-v1.3.6-0ea5e9.svg)](#)
-[![Plugin API](https://img.shields.io/badge/Plugin%20API-sidik.plugins-8b5cf6.svg)](#)
-[![Offline OSV DB](https://img.shields.io/badge/Offline%20OSV%20DB-35%2C304%20Advisories-10b981.svg)](#)
-[![Unit Tests](https://img.shields.io/badge/Unit%20Tests-73%2F73%20Passing-22c55e.svg)](#)
-[![License: MIT](https://img.shields.io/badge/License-MIT-a855f7.svg)](#)
+[![Python 3.9+](https://img.shields.io/pypi/pyversions/sidik?color=3b82f6)](https://pypi.org/project/sidik/)
+[![PyPI Version](https://img.shields.io/pypi/v/sidik?label=PyPI&color=0ea5e9)](https://pypi.org/project/sidik/)
+[![GitHub Release](https://img.shields.io/github/v/release/radityobw/SIDIK?label=Release&color=0284c7)](https://github.com/radityobw/SIDIK/releases/latest)
+[![CI Status](https://img.shields.io/github/actions/workflow/status/radityobw/SIDIK/sidik-security.yml?label=CI&color=22c55e)](https://github.com/radityobw/SIDIK/actions/workflows/sidik-security.yml)
+[![Offline OSV DB](https://img.shields.io/badge/Offline%20OSV%20DB-35%2C304%20Advisories-10b981.svg)](https://github.com/radityobw/SIDIK/blob/main/sidik/data/pypi_advisories.json)
+[![License: MIT](https://img.shields.io/badge/License-MIT-a855f7.svg)](https://github.com/radityobw/SIDIK/blob/main/LICENSE)
 
 </div>
 
@@ -225,9 +225,9 @@ sidik --target . --enable-ml --ml-model path/ke/model.skops
 sidik -i --enable-ml
 ```
 
-### 5. Menjalankan 73 *Unit Test* & Eksperimen *Benchmark*
+### 5. Menjalankan *Unit Test* & Eksperimen *Benchmark*
 ```bash
-# Jalankan seluruh 73 unit & integration tests
+# Jalankan seluruh unit & integration tests
 python -m unittest discover tests -v
 
 # Jalankan eksperimen & buat ulang seluruh grafik riset
@@ -242,7 +242,7 @@ python experiments/generate_charts.py
 # Jalankan lewat GitHub Container Registry (tanpa instalasi Python lokal)
 docker run --rm -v "${PWD}:/workspace" ghcr.io/radityobw/sidik:latest --target /workspace --format console
 
-# Atau jalankan langsung dari PyPI (`pip install "sidik[gui]"`) atau aset .whl pada GitHub Releases v1.3.6
+# Atau jalankan langsung dari PyPI (`pip install "sidik[gui]"`) atau aset .whl pada GitHub Releases (releases/latest)
 ```
 
 ---
@@ -251,8 +251,8 @@ docker run --rm -v "${PWD}:/workspace" ghcr.io/radityobw/sidik:latest --target /
 
 | Repositori | Peran Utama | Versi Terkini | Tautan |
 | :--- | :--- | :---: | :--- |
-| **SIDIK** | Mesin pemindai deterministik SAST & OSV SCA + host *plugin* UI | `v1.3.6` | [`github.com/radityobw/SIDIK`](https://github.com/radityobw/SIDIK) |
-| **SIDIK-ML** | Perangkat lunak ekstensi *Explainable Non-ANN ML* & *plugin* | `v0.5.4` | [`github.com/radityobw/SIDIK-ML`](https://github.com/radityobw/SIDIK-ML) |
+| **SIDIK** | Mesin pemindai deterministik SAST & OSV SCA + host *plugin* UI | [![PyPI](https://img.shields.io/pypi/v/sidik?label=PyPI&color=0ea5e9)](https://pypi.org/project/sidik/) | [`github.com/radityobw/SIDIK`](https://github.com/radityobw/SIDIK) |
+| **SIDIK-ML** | Perangkat lunak ekstensi *Explainable Non-ANN ML* & *plugin* | [![PyPI](https://img.shields.io/pypi/v/sidik-ml?label=PyPI&color=f59e0b)](https://pypi.org/project/sidik-ml/) | [`github.com/radityobw/SIDIK-ML`](https://github.com/radityobw/SIDIK-ML) |
 
 > **Publikasi Ilmiah:** Artikel penelitian deterministik awal telah diterbitkan di [*Jurnal Media Akademik (JMA)*](https://jurnal.mediaakademik.com/index.php/jma/article/view/9068/6647).
 
@@ -319,7 +319,7 @@ sidik . --baseline .sidik-baseline.json --fail-on high
 sidik --list-plugins
 sidik --target . --enable-ml --ml-model path/to/model.skops
 
-# 4. Run full regression suite (73 tests)
+# 4. Run full regression suite
 python -m unittest discover tests -v
 
 # 5. Run via GitHub Container Registry (ghcr.io)
@@ -334,8 +334,8 @@ docker run --rm -v "${PWD}:/workspace" ghcr.io/radityobw/sidik:latest --target /
 
 | Repository | Primary Role | Latest Version | Link |
 | :--- | :--- | :---: | :--- |
-| **SIDIK** | Deterministic SAST & OSV SCA core + UI plugin host | `v1.3.6` | [`github.com/radityobw/SIDIK`](https://github.com/radityobw/SIDIK) |
-| **SIDIK-ML** | Explainable Non-ANN ML extension & `sidik.plugins` adapter | `v0.5.4` | [`github.com/radityobw/SIDIK-ML`](https://github.com/radityobw/SIDIK-ML) |
+| **SIDIK** | Deterministic SAST & OSV SCA core + UI plugin host | [![PyPI](https://img.shields.io/pypi/v/sidik?label=PyPI&color=0ea5e9)](https://pypi.org/project/sidik/) | [`github.com/radityobw/SIDIK`](https://github.com/radityobw/SIDIK) |
+| **SIDIK-ML** | Explainable Non-ANN ML extension & `sidik.plugins` adapter | [![PyPI](https://img.shields.io/pypi/v/sidik-ml?label=PyPI&color=f59e0b)](https://pypi.org/project/sidik-ml/) | [`github.com/radityobw/SIDIK-ML`](https://github.com/radityobw/SIDIK-ML) |
 
 > **Scientific Publication:** The foundational deterministic study is published in [*Jurnal Media Akademik (JMA)*](https://jurnal.mediaakademik.com/index.php/jma/article/view/9068/6647).
 

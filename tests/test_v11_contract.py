@@ -1,7 +1,9 @@
 """Regression and API contract tests introduced for SIDIK v1.1.0 stabilization."""
 
+import importlib.metadata
 import json
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -14,6 +16,7 @@ from sidik import (
     SecurityScanner,
     __version__,
 )
+from sidik.dependency_analyzer.database import peek_db_summary_counts
 from sidik.dependency_analyzer.matcher import is_version_vulnerable
 from sidik.dependency_analyzer.parsers import (
     parse_pipfile,
@@ -21,6 +24,7 @@ from sidik.dependency_analyzer.parsers import (
     parse_requirements_txt,
     parse_setup_py,
 )
+from sidik.i18n import t
 from sidik.models import compute_stable_id
 from sidik.secret_detector.detector import SecretDetector
 
@@ -29,7 +33,27 @@ class TestSidikV11Stabilization(unittest.TestCase):
     """Verifies packaging, determinism, non-intrusive tracemalloc, parser fixes, and ML contract."""
 
     def test_version_and_exports(self):
-        self.assertEqual(__version__, "1.3.6")
+        self.assertRegex(__version__, r"^\d+\.\d+\.\d+$")
+        self.assertEqual(importlib.metadata.version("sidik"), __version__)
+        repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        with open(os.path.join(repo_root, "CHANGELOG.md"), "r", encoding="utf-8") as cf:
+            changelog = cf.read()
+        self.assertIn(f"## [{__version__}]", changelog)
+        self.assertIn(f"v{__version__}", t("app_version", lang="en"))
+        self.assertIn(f"v{__version__}", t("app_version", lang="id"))
+
+        adv_n, pkg_n = peek_db_summary_counts()
+        self.assertGreater(adv_n, 30000)
+        self.assertGreater(pkg_n, 10000)
+        about_id = t("about_features_text", lang="id")
+        about_en = t("about_features_text", lang="en")
+        self.assertNotIn("{advisory_count}", about_id)
+        self.assertNotIn("{package_count}", about_en)
+        self.assertIn(f"{adv_n:,}".replace(",", "."), about_id)
+        self.assertIn(f"{adv_n:,}", about_en)
+        self.assertIn("30 fitur", t("about_ml_features_text", lang="id"))
+        self.assertIn("30 explainable", t("about_ml_features_text", lang="en"))
+
         self.assertEqual(CANDIDATE_SCHEMA_VERSION, "1.0.0")
         self.assertEqual(compute_stable_id("SEC-SEC001", "a.py", "1"), compute_stable_id("SEC-SEC001", "a.py", "1"))
 

@@ -3,6 +3,7 @@ Provides complete bilingual support (Bahasa Indonesia & English) for GUI, CLI, a
 """
 
 from typing import Dict, Any, Optional
+from sidik._version import __version__ as _SIDIK_VERSION
 
 # Supported languages
 LANG_ID = "id"
@@ -45,8 +46,8 @@ TRANSLATIONS: Dict[str, Dict[str, str]] = {
         "en": "- Explainable Non-ANN ML False Positive Reduction (Python)"
     },
     "app_version": {
-        "id": "v1.3.6 (Deterministic Edition)",
-        "en": "v1.3.6 (Deterministic Edition)"
+        "id": f"v{_SIDIK_VERSION} (Deterministic Edition)",
+        "en": f"v{_SIDIK_VERSION} (Deterministic Edition)"
     },
     "lang_toggle_btn": {
         "id": "English (EN)",
@@ -571,8 +572,8 @@ TRANSLATIONS: Dict[str, Dict[str, str]] = {
             "Fitur & Karakteristik Utama:\n"
             "  1. Deteksi Secret Multi-Lapisan: Regex heuristik (12 aturan) + verifikasi entropi Shannon + filter konteks leksikal.\n"
             "  2. Reduksi Alarm Palsu Teruji: 0 FP pada uji terkontrol (N=100) dan memangkas 85.7% alarm palsu dibanding Bandit pada 25 repo GitHub nyata (14 FP vs 98 FP).\n"
-            "  3. SCA Multi-Manifes Luring: Mendukung 5 format Python (requirements.txt, pyproject.toml, setup.py, Pipfile, poetry.lock) termasuk rentang versi (>=, ~=).\n"
-            "  4. Basis Data Advisori OSV PyPI Luring: Mencakup 29.208 rekaman advisori kerentanan lintas 8.038 paket PyPI dengan akurasi 100/100 pada uji SCA v2 (vs Trivy 35/100) dalam 0.33 detik.\n"
+            "  3. SCA Multi-Manifes Luring: Mendukung 7 format manifes & lockfile Python (requirements*.txt, pyproject.toml, setup.py, Pipfile, Pipfile.lock, poetry.lock, uv.lock) termasuk rentang versi (>=, ~=).\n"
+            "  4. Basis Data Advisori OSV PyPI Luring: Mencakup {advisory_count} rekaman advisori kerentanan lintas {package_count} paket PyPI dengan akurasi 100/100 pada uji SCA v2 (vs Trivy 35/100) dalam 0.33 detik.\n"
             "  5. Efisiensi Komputasi Tinggi: Memindai 25 repositori nyata (186.876 baris kode) dalam ~2.5 - 3.2 detik (RAM scan rerata ~0.39 MB/repo; muat DB OSV awal ~116.47 MB).\n"
             "  6. Native Cross-Platform: Mendukung Windows, Linux, dan macOS (CLI, GUI, & Git pre-commit hook) tanpa kebocoran data ke pihak ketiga (zero data leakage).\n\n"
             "Aset Identitas & Desain:\n"
@@ -583,8 +584,8 @@ TRANSLATIONS: Dict[str, Dict[str, str]] = {
             "Key Features & Architecture:\n"
             "  1. Multi-Layer Secret Detection: Regex heuristics (12 rules) + Shannon entropy verification + lexical context filtering.\n"
             "  2. Validated False Positive Reduction: 0 FP on controlled test (N=100) and 85.7% fewer false positives than Bandit across 25 real GitHub repos (14 FP vs 98 FP).\n"
-            "  3. Offline Multi-Manifest SCA: Supports 5 Python manifest formats (requirements.txt, pyproject.toml, setup.py, Pipfile, poetry.lock) including version ranges (>=, ~=).\n"
-            "  4. Comprehensive Offline PyPI OSV DB: Covers 29,208 vulnerability advisory records across 8,038 PyPI packages achieving 100/100 detection on SCA v2 benchmark in 0.33s.\n"
+            "  3. Offline Multi-Manifest SCA: Supports 7 Python manifest & lockfile formats (requirements*.txt, pyproject.toml, setup.py, Pipfile, Pipfile.lock, poetry.lock, uv.lock) including version ranges (>=, ~=).\n"
+            "  4. Comprehensive Offline PyPI OSV DB: Covers {advisory_count} vulnerability advisory records across {package_count} PyPI packages achieving 100/100 detection on SCA v2 benchmark in 0.33s.\n"
             "  5. High Computational Efficiency: Scans 25 real repositories (186,876 LOC) in ~2.5 - 3.2s (avg scan RAM ~0.39 MB/repo; one-time OSV DB load ~116.47 MB).\n"
             "  6. Native Cross-Platform: Runs on Windows, Linux, and macOS (CLI, GUI, & Git pre-commit hook) with zero data leakage.\n\n"
             "Visual Branding & Licensing:\n"
@@ -596,14 +597,14 @@ TRANSLATIONS: Dict[str, Dict[str, str]] = {
         "id": (
             "SIDIK-ML (Explainable Non-ANN Machine Learning Edition):\n"
             "  1. Arsitektur Hybrid 2-Tahap: Core SIDIK secara deterministik mengekstrak kandidat secret terstruktur, lalu pengklasifikasi Non-ANN memberikan keputusan triage (KEEP_ALERT / SUPPRESS_FP).\n"
-            "  2. Murni Non-Neural (Non-ANN): Berbasis 19 fitur scan-time yang dapat dijelaskan (leksikal, karakteristik string, dan entropi) dengan jaminan zero data leakage.\n"
+            "  2. Murni Non-Neural (Non-ANN): Berbasis 30 fitur statis scan-time yang dapat dijelaskan (leksikal, karakteristik string, dan entropi) dengan jaminan zero data leakage.\n"
             "  3. Verifikasi Integritas Ketat: Mendukung artefak model .skops dengan validasi SHA-256 dan mode fallback pass-through deterministik yang aman.\n"
             "  4. Pemisahan Ekstensi Bersih: Dikemas terpisah sebagai paket sidik-ml dan terhubung ke Core SIDIK melalui plugin entry point resmi."
         ),
         "en": (
             "SIDIK-ML (Explainable Non-ANN Machine Learning Edition):\n"
             "  1. Two-Stage Hybrid Architecture: Core SIDIK deterministically extracts structured secret candidates, and the Non-ANN classifier assigns explainable triage verdicts (KEEP_ALERT / SUPPRESS_FP).\n"
-            "  2. Strictly Non-Neural (Non-ANN): Engineered around 19 explainable scan-time lexical, string, and entropy features with strict anti-leakage guarantees.\n"
+            "  2. Strictly Non-Neural (Non-ANN): Engineered around 30 explainable scan-time lexical, string, and entropy features with strict anti-leakage guarantees.\n"
             "  3. Strict Model Integrity: Supports verified .skops model artifacts with SHA-256 checksum validation and safe deterministic pass-through fallback.\n"
             "  4. Clean Extension Packaging: Packaged independently as sidik-ml and integrated with Core SIDIK through official plugin entry points."
         )
@@ -700,6 +701,14 @@ def t(key: str, lang: Optional[str] = None, **kwargs) -> str:
     if val is None:
         # Fallback to default language or key itself
         val = TRANSLATIONS.get(key, {}).get(DEFAULT_LANGUAGE, key)
+
+    if key == "about_features_text" and ("advisory_count" not in kwargs or "package_count" not in kwargs):
+        from sidik.dependency_analyzer.database import peek_db_summary_counts
+
+        adv_n, pkg_n = peek_db_summary_counts()
+        sep_adv = f"{adv_n:,}".replace(",", ".") if target_lang == LANG_ID else f"{adv_n:,}"
+        sep_pkg = f"{pkg_n:,}".replace(",", ".") if target_lang == LANG_ID else f"{pkg_n:,}"
+        kwargs = {**kwargs, "advisory_count": sep_adv, "package_count": sep_pkg}
 
     if kwargs:
         try:
