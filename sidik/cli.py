@@ -405,7 +405,7 @@ def run_interactive_cli(
             # Parse direct CLI command inside the interactive shell
             try:
                 tokens = shlex.split(cmd_raw, posix=(sys.platform != "win32"))
-                if tokens and tokens[0].lower() in ("sidik", "python"):
+                if tokens and tokens[0].lower() in ("sidik", "sidik-ml", "python"):
                     tokens = tokens[1:]
                 run_cli_with_args(tokens, exit_on_finish=False)
             except SystemExit:
@@ -421,6 +421,8 @@ def build_arg_parser() -> argparse.ArgumentParser:
         epilog=(
             "Examples:\n"
             "  sidik -i                                        # Launch Interactive CLI Console Window (TUI)\n"
+            "  sidik interactive                               # Alias for Interactive CLI Console (TUI)\n"
+            "  sidik --gui                                     # Launch SIDIK Desktop GUI (alias: sidik gui)\n"
             "  sidik .                                         # Scan current directory (secrets + dependencies)\n"
             "  sidik dataset/external --mode secret            # Scan target in secret-only mode\n"
             "  sidik --target . --format sarif -o sidik.sarif  # Export SARIF v2.1.0 for GitHub Code Scanning\n"
@@ -432,12 +434,17 @@ def build_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "positional_target",
         nargs="*",
-        help="Optional positional target path (e.g., 'sidik .' or 'sidik scan .')"
+        help="Optional positional target path or mode ('sidik .', 'sidik scan .', 'sidik interactive', 'sidik gui')"
     )
     parser.add_argument(
         "--interactive", "-i", "--cli",
         action="store_true",
         help="Launch interactive CLI console window (TUI menu & command shell)"
+    )
+    parser.add_argument(
+        "--gui",
+        action="store_true",
+        help="Launch SIDIK Desktop GUI"
     )
     parser.add_argument(
         "--target", "-t",
@@ -578,10 +585,21 @@ def run_cli_with_args(argv: Optional[List[str]] = None, exit_on_finish: bool = T
     parser = build_arg_parser()
     args = parser.parse_args(argv)
 
+    if args.target is None and args.positional_target:
+        head_tok = args.positional_target[0].lower()
+        if head_tok in ("interactive", "cli", "tui") and not os.path.exists(args.positional_target[0]):
+            args.interactive = True
+            args.positional_target = args.positional_target[1:]
+        elif head_tok == "gui" and not os.path.exists(args.positional_target[0]):
+            args.gui = True
+            args.positional_target = args.positional_target[1:]
+
+    ml_flag = bool(args.enable_ml or (args.plugin and args.plugin.lower() == "sidik-ml"))
+
     if args.interactive:
         code = run_interactive_cli(
             initial_lang=args.lang,
-            enable_ml_plugin=bool(args.enable_ml or (args.plugin and args.plugin.lower() == "sidik-ml")),
+            enable_ml_plugin=ml_flag,
             ml_model_path=args.ml_model,
             ml_sha256=args.ml_sha256,
             ml_threshold=args.ml_threshold,
@@ -590,6 +608,20 @@ def run_cli_with_args(argv: Optional[List[str]] = None, exit_on_finish: bool = T
         if exit_on_finish:
             sys.exit(code)
         return code
+
+    if args.gui:
+        from sidik.gui import main as sidik_gui_main
+        sidik_gui_main(
+            enable_ml=ml_flag,
+            ml_model_path=args.ml_model,
+            ml_sha256=args.ml_sha256,
+            ml_threshold=args.ml_threshold,
+            ml_suppress_fp=args.ml_suppress_fp,
+            app_brand="SIDIK-ML" if ml_flag else "SIDIK",
+        )
+        if exit_on_finish:
+            sys.exit(0)
+        return 0
 
     if args.list_plugins:
         plugins = discover_plugins()

@@ -130,6 +130,25 @@ class TestSidikPluginArchitecture(unittest.TestCase):
             code_bad = run_cli_with_args(["--target", tmp, "--plugin", "nonexistent-plugin-xyz"], exit_on_finish=False)
             self.assertEqual(code_bad, 2)
 
+    def test_cli_symmetric_interactive_and_gui_shorthands(self):
+        from unittest.mock import patch
+
+        with patch("sidik.cli.run_interactive_cli", return_value=0) as mock_tui:
+            for argv in (["-i"], ["interactive"], ["cli"], ["tui"]):
+                mock_tui.reset_mock()
+                code = run_cli_with_args(argv, exit_on_finish=False)
+                self.assertEqual(code, 0)
+                mock_tui.assert_called_once()
+
+        with patch("sidik.gui.main") as mock_gui:
+            for argv, expected_ml in ((["--gui"], False), (["gui"], False), (["--gui", "--enable-ml"], True)):
+                mock_gui.reset_mock()
+                code = run_cli_with_args(argv, exit_on_finish=False)
+                self.assertEqual(code, 0)
+                mock_gui.assert_called_once()
+                _, kwargs = mock_gui.call_args
+                self.assertEqual(kwargs["enable_ml"], expected_ml)
+
 
 if __name__ == "__main__":
     unittest.main()

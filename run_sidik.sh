@@ -10,8 +10,10 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
 cd "$SCRIPT_DIR"
 
-# Detect Python 3 executable
-if command -v python3 &>/dev/null; then
+# Detect Python 3 executable (prefer local .venv if present)
+if [ -x "$SCRIPT_DIR/.venv/bin/python" ]; then
+    PY_CMD="$SCRIPT_DIR/.venv/bin/python"
+elif command -v python3 &>/dev/null; then
     PY_CMD="python3"
 elif command -v python &>/dev/null; then
     PY_CMD="python"

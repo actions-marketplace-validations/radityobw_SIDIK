@@ -1,12 +1,14 @@
 @echo off
 chcp 65001 >nul
-title SIDIK CLI v1.0 - Interactive Security Console
+title SIDIK - Interactive Security Console
 cd /d "%~dp0"
 
+set "PY_CMD=python"
+if exist ".venv\Scripts\python.exe" set "PY_CMD=.venv\Scripts\python.exe"
+
 if "%~1"=="" (
-    python sidik.py --cli
+    "%PY_CMD%" sidik.py -i
 ) else (
-    python sidik.py %*
+    "%PY_CMD%" sidik.py %*
     pause
 )
-

@@ -172,15 +172,15 @@ pip install -e ".[gui]"
 # pip install -e ..\SIDIK-ML
 ```
 
-> **Catatan Windows PowerShell:** Jika Anda masuk ke direktori `.venv\Scripts` tanpa mengaktifkan `.\Activate.ps1`, gunakan awalan `.\` saat menjalankan skrip konsol (misalnya `.\sidik -i`, `.\sidik-gui`, atau `.\sidik-ml gui`). Jika aktivasi dibatasi kebijakan eksekusi, jalankan langsung melalui `python -m sidik ...`.
+> **Catatan Windows PowerShell:** Jika Anda masuk ke direktori `.venv\Scripts` tanpa mengaktifkan `.\Activate.ps1`, gunakan awalan `.\` saat menjalankan skrip konsol (misalnya `.\sidik -i`, `.\sidik --gui`, `.\sidik-ml -i`, atau `.\sidik-ml --gui`). Jika aktivasi dibatasi kebijakan eksekusi, jalankan langsung melalui `python -m sidik ...` atau `python -m sidik_ml ...`.
 
 ### *Structured Candidate Contract* (`SIDIK` -> `SIDIK-ML`)
 Sejak `v1.1.0`, `SecurityScanner.extract_secret_candidates()` dan `SecretDetector.extract_candidates()` menyediakan objek berversi `SecretCandidate` (`schema_version = "1.0.0"`, `compute_stable_id()` berbasis SHA-256) tanpa menyimpan nilai rahasia mentah (`masked_value` + `value_sha256`).
 
 ### 2. Menjalankan *Desktop GUI* (Mode Visual)
 ```bash
-python sidik.py --gui
-# atau klik dua kali run_sidik.bat pada Windows
+sidik --gui                  # atau sidik-gui / python -m sidik --gui
+python sidik.py --gui        # atau klik dua kali run_sidik.bat pada Windows
 ```
 * Gunakan tombol **`🌐 English (EN)` / `🌐 Indonesia (ID)`** di kanan atas untuk mengganti bahasa secara instan.
 * Gunakan 5 tombol **Presets** (`Uji Secrets (N=100)`, `Uji Dependensi v2`, `25 Repo Eksternal (Secret)`, `25 Repo Eksternal (Full)`, `Kode Sumber SIDIK`) untuk mendemonstrasikan hasil riset secara langsung.
@@ -188,13 +188,14 @@ python sidik.py --gui
 
 ### 3. Menjalankan *Interactive CLI Menu* (Mode Terminal Interaktif)
 ```bash
-python sidik.py --cli
-# atau klik dua kali run_sidik_cli.bat pada Windows
+sidik -i                     # setara dengan: sidik interactive / python -m sidik -i
+python sidik.py -i           # atau klik dua kali run_sidik_cli.bat pada Windows
 ```
 
 ### 4. Menjalankan *One-Shot CLI* & Ekspor 7 Format Laporan
 ```bash
-# Pemindaian standar di terminal (Bahasa Indonesia / Inggris)
+# Pemindaian standar di terminal (argumen posisional atau --target / -t)
+sidik .
 python -m sidik --target dataset/secrets/test --lang id
 python -m sidik --target dataset/dependencies_v2/test --lang en
 
@@ -286,9 +287,10 @@ python -m venv .venv
 pip install -e ".[gui]"
 # pip install -e ..\SIDIK-ML
 
-# 3. Launch Desktop GUI, Interactive TUI, or One-Shot CLI
-sidik-gui
-sidik -i --lang en
+# 3. Launch Desktop GUI, Interactive TUI, or One-Shot CLI (symmetric with sidik-ml)
+sidik --gui                    # or sidik-gui / python -m sidik --gui
+sidik -i --lang en             # or sidik interactive / python -m sidik -i
+sidik .                        # or sidik --target . / python -m sidik --target .
 sidik --target . --format html --output audit_report.html --lang en
 
 # 4. Run with optional SIDIK-ML triage plugin (when installed)
@@ -299,7 +301,7 @@ sidik --target . --enable-ml --ml-model path/to/model.skops
 python -m unittest discover tests -v
 ```
 
-> **Windows PowerShell Note:** Inside `.venv\Scripts` without prior `.\Activate.ps1`, prefix commands with `.\` (e.g., `.\sidik -i` or `.\sidik-gui`) or invoke via `python -m sidik ...`.
+> **Windows PowerShell Note:** Inside `.venv\Scripts` without prior `.\Activate.ps1`, prefix commands with `.\` (e.g., `.\sidik -i`, `.\sidik --gui`, `.\sidik-ml -i`) or invoke via `python -m sidik ...` / `python -m sidik_ml ...`.
 
 ---
 
