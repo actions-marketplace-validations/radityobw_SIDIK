@@ -5,7 +5,7 @@ import time
 import fnmatch
 import tracemalloc
 from typing import List, Optional, Callable, Tuple
-from sidik.models import ScanReport
+from sidik.models import ScanReport, SecretCandidate
 from sidik.secret_detector.detector import SecretDetector
 from sidik.dependency_analyzer.analyzer import DependencyAnalyzer, MANIFEST_FILENAMES
 from sidik.dependency_analyzer.database import VulnerabilityDatabase
@@ -69,6 +69,11 @@ def is_path_ignored(rel_path: str, patterns: List[str]) -> bool:
 class SecurityScanner:
     """SIDIK (Secret Identification and Dependency Inspection Kit) core security analyzer."""
 
+    DEFAULT_PRUNE_DIRS = {
+        ".git", ".venv", "venv", "__pycache__", "node_modules",
+        ".idea", ".vscode", ".pytest_cache", "dist", "build"
+    }
+
     def __init__(
         self,
         enable_secret_scan: bool = True,
@@ -76,7 +81,9 @@ class SecurityScanner:
         enable_context: bool = True,
         enable_entropy: bool = True,
         custom_vulnerability_db: Optional[str] = None,
-        ignore_patterns: Optional[List[str]] = None
+        ignore_patterns: Optional[List[str]] = None,
+        measure_memory: bool = False,
+        secret_extensions: Optional[Tuple[str, ...]] = None,
     ):
         self.enable_secret_scan = enable_secret_scan
         self.enable_dependency_scan = enable_dependency_scan
@@ -84,6 +91,71 @@ class SecurityScanner:
         db = VulnerabilityDatabase(custom_vulnerability_db) if custom_vulnerability_db else None
         self.dependency_analyzer = DependencyAnalyzer(db=db)
         self.custom_ignore_patterns = list(ignore_patterns) if ignore_patterns else []
+        self.measure_memory = measure_memory
+        self.secret_extensions = secret_extensions or (".py", ".env")
+
+    def _discover_candidate_files(self, target_path: str) -> List[Tuple[str, str, bool, bool]]:
+        """Discovers target files for secret and/or dependency scanning honoring .sidikignore."""
+        base_dir = target_path if os.path.isdir(target_path) else os.path.dirname(target_path)
+        file_ignore_patterns = load_sidikignore_patterns(base_dir)
+        all_ignore_patterns = list(self.custom_ignore_patterns) + file_ignore_patterns
+
+        candidate_files: List[Tuple[str, str, bool, bool]] = []
+
+        if os.path.isfile(target_path):
+            filename = os.path.basename(target_path).lower()
+            if not is_path_ignored(os.path.basename(target_path), all_ignore_patterns):
+                is_sec = self.enable_secret_scan and filename.endswith(
+                    (".py", ".env", ".cfg", ".ini", ".json", ".yaml", ".yml", ".txt")
+                )
+                is_dep = self.enable_dependency_scan and any(
+                    filename == m.lower() or filename.endswith("requirements.txt") for m in MANIFEST_FILENAMES
+                )
+                if is_sec or is_dep:
+                    candidate_files.append((target_path, os.path.basename(target_path), is_sec, is_dep))
+                else:
+                    candidate_files.append((
+                        target_path,
+                        os.path.basename(target_path),
+                        self.enable_secret_scan,
+                        self.enable_dependency_scan,
+                    ))
+        elif os.path.isdir(target_path):
+            for root, dirs, files in os.walk(target_path):
+                # Prune common VCS/build/environment directories to prevent redundant crawling
+                dirs[:] = [d for d in dirs if d not in self.DEFAULT_PRUNE_DIRS]
+                if all_ignore_patterns:
+                    pruned_dirs = []
+                    for d in dirs:
+                        rel_dir = os.path.relpath(os.path.join(root, d), target_path)
+                        if not is_path_ignored(rel_dir + "/", all_ignore_patterns):
+                            pruned_dirs.append(d)
+                    dirs[:] = pruned_dirs
+
+                # Respect directory-local .sidikignore when scanning nested workspaces
+                local_ignores = all_ignore_patterns
+                if root != target_path:
+                    nested = load_sidikignore_patterns(root)
+                    if nested:
+                        rel_prefix = os.path.relpath(root, target_path).replace("\\", "/")
+                        local_ignores = list(all_ignore_patterns) + [
+                            f"{rel_prefix}/{pat.lstrip('/')}" for pat in nested
+                        ]
+
+                for f in files:
+                    f_lower = f.lower()
+                    full_path = os.path.join(root, f)
+                    rel_name = os.path.relpath(full_path, target_path)
+                    if local_ignores and is_path_ignored(rel_name, local_ignores):
+                        continue
+                    is_sec = self.enable_secret_scan and f_lower.endswith(self.secret_extensions)
+                    is_dep = self.enable_dependency_scan and any(
+                        f_lower == m.lower() or f_lower.endswith("requirements.txt") for m in MANIFEST_FILENAMES
+                    )
+                    if is_sec or is_dep:
+                        candidate_files.append((full_path, rel_name, is_sec, is_dep))
+
+        return candidate_files
 
     def scan_path(
         self,
@@ -100,108 +172,69 @@ class SecurityScanner:
         target_path = os.path.abspath(target_path)
         aggregator = FindingAggregator(target_path=target_path)
 
-        base_dir = target_path if os.path.isdir(target_path) else os.path.dirname(target_path)
-        file_ignore_patterns = load_sidikignore_patterns(base_dir)
-        all_ignore_patterns = list(self.custom_ignore_patterns) + file_ignore_patterns
-
-        # Pre-warm vulnerability database index outside tracemalloc so scan memory measures scanning overhead
+        # Pre-warm vulnerability database index outside optional tracemalloc measurement
         if self.enable_dependency_scan:
             _ = self.dependency_analyzer.db.advisories
 
-        if tracemalloc.is_tracing():
-            tracemalloc.stop()
-        tracemalloc.start()
+        started_tracemalloc = False
+        if self.measure_memory and not tracemalloc.is_tracing():
+            tracemalloc.start()
+            started_tracemalloc = True
+
         start_time = time.perf_counter()
         files_scanned = 0
-
-        # Internal dataset/benchmark metadata files & curation scripts that should not be scanned as target code
-        internal_skip_files = {
-            "pypi_advisories.json",
-            "_cache.json",
-            "all_candidates.json",
-            "ground_truth_secrets.json",
-            "secrets_ground_truth.json",
-            "dependencies_ground_truth.json",
-            "dependencies_v2_ground_truth.json",
-            "repos.json",
-            "scan_info.json",
-            "experiment_results.json",
-            "external_case_studies.json",
-            "secret_comparative_benchmark.json",
-            "sca_comparative_benchmark.json",
-            "ablation_results.json",
-            "select_repos.py",
-            "extract_all_candidates.py",
-            "process_annotations.py",
-        }
-
-        # Discover all candidate files for deterministic progress calculation
-        candidate_files: List[Tuple[str, str, bool, bool]] = []
-
-        if os.path.isfile(target_path):
-            filename = os.path.basename(target_path).lower()
-            if not is_path_ignored(os.path.basename(target_path), all_ignore_patterns):
-                is_sec = self.enable_secret_scan and target_path.endswith((".py", ".env", ".cfg", ".ini", ".json", ".yaml", ".yml", ".txt"))
-                is_dep = self.enable_dependency_scan and any(filename == m.lower() or filename.endswith("requirements.txt") for m in MANIFEST_FILENAMES)
-                if is_sec or is_dep:
-                    candidate_files.append((target_path, os.path.basename(target_path), is_sec, is_dep))
-                else:
-                    candidate_files.append((target_path, os.path.basename(target_path), self.enable_secret_scan, self.enable_dependency_scan))
-        elif os.path.isdir(target_path):
-            for root, dirs, files in os.walk(target_path):
-                # Prune common VCS/build/environment directories to prevent redundant crawling
-                dirs[:] = [d for d in dirs if d not in {".git", ".venv", "venv", "__pycache__", "node_modules", ".idea", ".vscode", ".pytest_cache", "figures", "results"}]
-                if all_ignore_patterns:
-                    pruned_dirs = []
-                    for d in dirs:
-                        rel_dir = os.path.relpath(os.path.join(root, d), target_path)
-                        if not is_path_ignored(rel_dir + "/", all_ignore_patterns):
-                            pruned_dirs.append(d)
-                    dirs[:] = pruned_dirs
-
-                for f in files:
-                    f_lower = f.lower()
-                    if f_lower in internal_skip_files:
-                        continue
-                    full_path = os.path.join(root, f)
-                    rel_name = os.path.relpath(full_path, target_path)
-                    if all_ignore_patterns and is_path_ignored(rel_name, all_ignore_patterns):
-                        continue
-                    is_sec = self.enable_secret_scan and f_lower.endswith((".py", ".env"))
-                    is_dep = self.enable_dependency_scan and any(f_lower == m.lower() or f_lower.endswith("requirements.txt") for m in MANIFEST_FILENAMES)
-                    if is_sec or is_dep:
-                        candidate_files.append((full_path, rel_name, is_sec, is_dep))
-
+        candidate_files = self._discover_candidate_files(target_path)
         total_files = len(candidate_files)
 
-        for idx, (full_path, rel_name, is_sec, is_dep) in enumerate(candidate_files, 1):
-            if progress_callback:
-                progress_callback(idx, total_files, rel_name)
+        try:
+            for idx, (full_path, rel_name, is_sec, is_dep) in enumerate(candidate_files, 1):
+                if progress_callback:
+                    progress_callback(idx, total_files, rel_name)
 
-            scanned_this_file = False
+                scanned_this_file = False
 
-            # Secret scanning for code/config files
-            if is_sec:
-                findings = self.secret_detector.scan_file(full_path)
-                aggregator.add_findings(findings)
-                scanned_this_file = True
+                # Secret scanning for code/config files
+                if is_sec:
+                    findings = self.secret_detector.scan_file(full_path)
+                    aggregator.add_findings(findings)
+                    scanned_this_file = True
 
-            # Dependency scanning for manifests
-            if is_dep:
-                dep_findings = self.dependency_analyzer.scan_manifest_file(full_path)
-                aggregator.add_findings(dep_findings)
-                scanned_this_file = True
+                # Dependency scanning for manifests
+                if is_dep:
+                    dep_findings = self.dependency_analyzer.scan_manifest_file(full_path)
+                    aggregator.add_findings(dep_findings)
+                    scanned_this_file = True
 
-            if scanned_this_file:
-                files_scanned += 1
+                if scanned_this_file:
+                    files_scanned += 1
 
-        duration = time.perf_counter() - start_time
-        _, peak_mem_bytes = tracemalloc.get_traced_memory()
-        tracemalloc.stop()
+            duration = time.perf_counter() - start_time
+            peak_mem_bytes = 0
+            if self.measure_memory and tracemalloc.is_tracing():
+                _, peak_mem_bytes = tracemalloc.get_traced_memory()
+        finally:
+            if started_tracemalloc:
+                tracemalloc.stop()
 
         aggregator.set_files_scanned_count(files_scanned)
         peak_mb = peak_mem_bytes / (1024 * 1024)
         return aggregator.build_report(duration_seconds=duration, peak_memory_mb=peak_mb)
+
+    def extract_secret_candidates(
+        self,
+        target_path: str,
+        include_filtered: bool = True,
+    ) -> List[SecretCandidate]:
+        """Extracts structured SecretCandidate objects across target_path for analysis or ML triage."""
+        target_path = os.path.abspath(target_path)
+        candidate_files = self._discover_candidate_files(target_path)
+        extracted: List[SecretCandidate] = []
+        for full_path, _, is_sec, _ in candidate_files:
+            if is_sec:
+                extracted.extend(
+                    self.secret_detector.extract_candidates_from_file(full_path, include_filtered=include_filtered)
+                )
+        return extracted
 
 
 # Alias for branded usage

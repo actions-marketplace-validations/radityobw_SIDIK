@@ -7,9 +7,9 @@
 **Instrumen Analisis Keamanan Statis (*SAST*) & Analisis Komposisi Perangkat Lunak (*SCA*) Luring Terpadu untuk Ekosistem Python**  
 *Unified Offline Static Application Security Testing (SAST) & Software Composition Analysis (SCA) for Python*
 
-[![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-3b82f6.svg)](#)
+[![Python 3.9+](https://img.shields.io/badge/Python-3.9%2B-3b82f6.svg)](#)
 [![Offline OSV DB](https://img.shields.io/badge/Offline%20OSV%20DB-29%2C208%20Advisories-10b981.svg)](#)
-[![Unit Tests](https://img.shields.io/badge/Unit%20Tests-51%2F51%20Passing-22c55e.svg)](#)
+[![Unit Tests](https://img.shields.io/badge/Unit%20Tests-58%2F58%20Passing-22c55e.svg)](#)
 [![License: MIT](https://img.shields.io/badge/License-MIT-a855f7.svg)](#)
 
 </div>
@@ -31,6 +31,7 @@ Jurusan Informatika, Fakultas Teknik, Universitas Sultan Ageng Tirtayasa (Untirt
 3. **Raditya Ahmad Pratama** (Mesin *Offline SCA* 5 Format Manifes, Evaluator Versi Semantik PEP 440, & Indeks OSV)
 4. **Zayyan Fadhlur Rahman** (Konstruksi Korpus 25 Repositori GitHub Nyata, *Benchmark* SCA v2, & Evaluasi Komparatif)
 5. **Muhammad Fahri Indra Saputra** (*Desktop GUI High-DPI* Dwibahasa, Lokalisasi `i18n`, & Pelaporan 7 Format termasuk SARIF v2.1.0)
+6. **Mohamad Hilman** (Pembimbingan Metodologi Riset, Kurasi Riset Ilmiah, & Penelaahan Akademik)
 
 ---
 
@@ -98,7 +99,7 @@ SIDIK/
 │   └── generate_charts.py             # Generator grafik publikasi (300 DPI) & bundel visualisasi GUI
 ├── figures/                           # Grafik hasil eksperimen (Paper & Dark-Theme GUI Bundle)
 ├── results/                           # Rekaman JSON hasil eksperimen & benchmark komparatif
-├── tests/                             # Suite pengujian otomatis (51 unit & integration tests)
+├── tests/                             # Suite pengujian otomatis (58 unit & integration tests)
 ├── action.yml                         # Definisi komposit GitHub Actions untuk integrasi CI/CD
 ├── sidik.py                           # Peluncur universal (GUI, Interactive CLI, & One-Shot CLI)
 ├── run_sidik.bat                      # Peluncur cepat Desktop GUI (Windows)
@@ -111,7 +112,7 @@ SIDIK/
 
 ## 📊 Hasil Evaluasi Empiris & *Benchmark* Komparatif
 
-Seluruh hasil pengujian direkam secara transparan di direktori [`results/`](file:///d:/Downloads/SIDIK-root/SIDIK/results) dan divisualisasikan di [`figures/`](file:///d:/Downloads/SIDIK-root/SIDIK/figures):
+Seluruh hasil pengujian direkam secara transparan di direktori [`results/`](results/) dan divisualisasikan di [`figures/`](figures/):
 
 ### 1. Evaluasi Deteksi *Hardcoded Secret* pada 25 Repositori GitHub Nyata (`186.876` LOC, `1.193` Berkas `.py`, `109` Kandidat)
 > **Catatan Transparansi Korpus:** Ke-25 repositori publik memiliki `0` kebocoran kunci produksi aktif (`TP = 0`; seluruh `109` kandidat adalah kode pengujian/*fixture*/contoh dokumentasi). Oleh karena itu, evaluasi pada korpus ini mengukur ketahanan terhadap alarm palsu (*False Positive Rate* / FPR) dan kecepatan eksekusi.
@@ -150,11 +151,15 @@ Seluruh hasil pengujian direkam secara transparan di direktori [`results/`](file
 
 ## 🚀 Panduan Penggunaan Cepat (*Quick Start*)
 
-### 1. Instalasi Dependensi
-Pastikan Python `3.10+` telah terpasang, lalu pasang dependensi:
+### 1. Instalasi Dependensi & Paket
+Pastikan Python `3.9+` telah terpasang, lalu pasang paket beserta dependensi:
 ```bash
-pip install -r requirements.txt
+pip install -e ".[gui]"
+# atau: pip install -r requirements.txt
 ```
+
+### *Structured Candidate Contract* (`SIDIK` -> `SIDIK-ML`)
+Sejak `v1.1.0`, `SecurityScanner.extract_secret_candidates()` dan `SecretDetector.extract_candidates()` menyediakan objek berversi `SecretCandidate` (`schema_version = "1.0.0"`, `compute_stable_id()` berbasis SHA-256) tanpa menyimpan nilai rahasia mentah (`masked_value` + `value_sha256`).
 
 ### 2. Menjalankan *Desktop GUI* (Mode Visual)
 ```bash
@@ -186,9 +191,9 @@ python -m sidik --install-hook
 python -m sidik --target . --fail-on high
 ```
 
-### 5. Menjalankan 51 *Unit Test* & Eksperimen *Benchmark*
+### 5. Menjalankan 58 *Unit Test* & Eksperimen *Benchmark*
 ```bash
-# Jalankan seluruh 51 unit & integration tests
+# Jalankan seluruh 58 unit & integration tests
 python -m unittest discover tests -v
 
 # Jalankan eksperimen & buat ulang seluruh grafik riset

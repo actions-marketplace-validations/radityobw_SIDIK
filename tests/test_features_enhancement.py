@@ -144,7 +144,7 @@ class TestHtmlReportFormatter(unittest.TestCase):
     def test_to_html_indonesian_localization(self):
         html_id = ReportFormatter.to_html(self.report, lang="id")
         self.assertIn("<!DOCTYPE html>", html_id)
-        self.assertIn("Laporan Audit Keamanan", html_id)
+        self.assertIn("Dasbor Laporan Analisis Keamanan SIDIK", html_id)
         self.assertIn("Path Target", html_id)
         self.assertIn("Total Temuan", html_id)
 

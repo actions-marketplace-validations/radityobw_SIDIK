@@ -12,13 +12,16 @@ def normalize_version_specifier(raw_spec: str) -> str:
     if not spec or spec == "*":
         return ""
 
-    # Poetry caret: ^1.2.3 -> >=1.2.3, <2.0.0
+    # Poetry caret: ^1.2.3 -> >=1.2.3,<2.0.0 ; ^0.2.3 -> >=0.2.3,<0.3.0 ; ^0.0.3 -> >=0.0.3,<0.0.4
     if spec.startswith("^"):
         v_str = spec[1:].strip()
         try:
             v = Version(v_str)
-            next_major = v.major + 1
-            return f">={v_str},<{next_major}.0.0"
+            if v.major > 0:
+                return f">={v_str},<{v.major + 1}.0.0"
+            if v.minor > 0:
+                return f">={v_str},<0.{v.minor + 1}.0"
+            return f">={v_str},<0.0.{v.micro + 1}"
         except InvalidVersion:
             return f">={v_str}"
 
@@ -79,18 +82,45 @@ def is_version_vulnerable(declared_spec: str, vulnerable_spec: str) -> Tuple[boo
         except InvalidVersion:
             pass
 
-    # Case 2: Range specification (e.g. >=2.20.0, <2.28.0)
+    # Case 2: Range specification (e.g. >=2.20.0, <2.28.0 or <2.30.0)
     try:
         declared_spec_set = SpecifierSet(norm_declared)
         # Check if lower bound or sample points are in the vulnerable set
+        probe_versions = []
         for spec in declared_spec_set:
+            try:
+                v_bound = Version(spec.version)
+            except InvalidVersion:
+                continue
             if spec.operator in (">=", "==", "~="):
-                try:
-                    sample_v = Version(spec.version)
-                    if sample_v in vuln_spec_set:
-                        return True, f"Declared bound '{spec.operator}{spec.version}' intersects with {vulnerable_spec}"
-                except InvalidVersion:
-                    continue
+                probe_versions.append(v_bound)
+            elif spec.operator == ">":
+                probe_versions.append(Version(f"{v_bound.major}.{v_bound.minor}.{v_bound.micro + 1}"))
+                probe_versions.append(Version(f"{v_bound.major}.{v_bound.minor + 1}.0"))
+            elif spec.operator in ("<", "<="):
+                if spec.operator == "<=":
+                    probe_versions.append(v_bound)
+                probe_versions.append(Version("0.0.0"))
+                if v_bound.micro > 0:
+                    probe_versions.append(Version(f"{v_bound.major}.{v_bound.minor}.{v_bound.micro - 1}"))
+                if v_bound.minor > 0:
+                    probe_versions.append(Version(f"{v_bound.major}.{v_bound.minor - 1}.0"))
+                if v_bound.major > 0:
+                    probe_versions.append(Version(f"{v_bound.major - 1}.0.0"))
+
+        for spec in vuln_spec_set:
+            try:
+                v_vuln = Version(spec.version)
+            except InvalidVersion:
+                continue
+            if spec.operator in (">=", "==", "~="):
+                probe_versions.append(v_vuln)
+            elif spec.operator == ">":
+                probe_versions.append(Version(f"{v_vuln.major}.{v_vuln.minor}.{v_vuln.micro + 1}"))
+
+        for sample_v in probe_versions:
+            if sample_v in declared_spec_set and sample_v in vuln_spec_set:
+                return True, f"Declared range '{norm_declared}' intersects with {vulnerable_spec} (e.g. {sample_v})"
     except InvalidSpecifier:
         pass
 

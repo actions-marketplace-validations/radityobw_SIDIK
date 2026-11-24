@@ -1,0 +1,7 @@
+# Exclude curation metadata and helper scripts when scanning dataset/external directly
+all_candidates.json
+ground_truth_secrets.json
+repos.json
+select_repos.py
+extract_all_candidates.py
+process_annotations.py

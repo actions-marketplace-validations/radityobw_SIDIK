@@ -7,12 +7,11 @@ import subprocess
 import sys
 import os
 from typing import Optional, List
+from sidik import __version__ as VERSION
 from sidik.core import SecurityScanner
 from sidik.models import ScanReport, Finding
 from sidik.reporting.formatter import ReportFormatter
 from sidik.i18n import get_secret_remediation, get_dependency_remediation
-
-VERSION = "1.0.0"
 
 PRE_COMMIT_HOOK_SCRIPT = """#!/bin/sh
 # SIDIK Automated Git Pre-Commit Security Hook
@@ -123,7 +122,7 @@ def run_interactive_cli(initial_lang: str = "id") -> int:
         )
         print(f"\n{C_CYAN}╔════════════════════════════════════════════════════════════════════════════════╗{C_RESET}")
         print(f"{C_CYAN}║{C_RESET}  {C_BOLD}{C_WHITE}🛡️  SIDIK CLI v{VERSION} - Secret Identification & Dependency Inspection Kit{C_RESET}      {C_CYAN}║{C_RESET}")
-        print(f"{C_CYAN}║{C_RESET}  {C_DIM}Lightweight Offline Python SAST & SCA | 29,208 OSV PyPI Advisories{C_RESET}           {C_CYAN}║{C_RESET}")
+        print(f"{C_CYAN}║{C_RESET}  {C_DIM}Lightweight Offline Python SAST & SCA | Bundled OSV PyPI Advisory DB{C_RESET}        {C_CYAN}║{C_RESET}")
         print(f"{C_CYAN}╠════════════════════════════════════════════════════════════════════════════════╣{C_RESET}")
         print(f"{C_CYAN}║{C_RESET}  Bahasa: {C_BOLD}{lang.upper()}{C_RESET}  |  Filter Konteks: {ctx_str}  |  Entropi: {ent_str}  |  Scan Terakhir: {C_YELLOW}{last_str}{C_RESET}")
         print(f"{C_CYAN}╚════════════════════════════════════════════════════════════════════════════════╝{C_RESET}")
@@ -160,7 +159,8 @@ def run_interactive_cli(initial_lang: str = "id") -> int:
             enable_secret_scan=sec,
             enable_dependency_scan=dep,
             enable_context=enable_context,
-            enable_entropy=enable_entropy
+            enable_entropy=enable_entropy,
+            measure_memory=True,
         )
 
         def progress(cur: int, tot: int, fname: str):
@@ -269,7 +269,7 @@ def run_interactive_cli(initial_lang: str = "id") -> int:
         elif low == "5":
             execute_scan(os.path.join(base_dir, "dataset", "external", "_repos"), sec=True, dep=True)
         elif low == "6":
-            execute_scan(os.path.join(base_dir, "sidik"), sec=True, dep=True)
+            execute_scan(os.path.dirname(os.path.abspath(__file__)), sec=True, dep=True)
         elif low == "7":
             print(f"  {C_BOLD}[a]{C_RESET} Salin Semua Potongan Kode ({len(last_report.findings) if last_report else 0} flag) ke Clipboard")
             print(f"  {C_BOLD}[b]{C_RESET} Salin Semua Panduan Remediasi ({len(last_report.findings) if last_report else 0} flag) ke Clipboard")
@@ -280,7 +280,12 @@ def run_interactive_cli(initial_lang: str = "id") -> int:
             elif sub == "b":
                 copy_all_items("rem")
             elif sub == "c":
-                f_out = input("  Nama berkas output [default: results/laporan_sidik.html]: ").strip() or os.path.join(base_dir, "results", "laporan_sidik.html")
+                default_out_dir = (
+                    os.path.join(base_dir, "results")
+                    if os.path.isdir(os.path.join(base_dir, "results"))
+                    else os.getcwd()
+                )
+                f_out = input("  Nama berkas output [default: laporan_sidik.html]: ").strip() or os.path.join(default_out_dir, "laporan_sidik.html")
                 export_interactive(f_out)
         elif low == "8":
             print(f"  {C_BOLD}[a]{C_RESET} Toggle Filter Konteks Leksikal (Saat ini: {'ON' if enable_context else 'OFF'})")
@@ -517,7 +522,8 @@ def run_cli_with_args(argv: Optional[List[str]] = None, exit_on_finish: bool = T
         enable_dependency_scan=not is_secret_only,
         enable_context=not args.no_context,
         enable_entropy=not args.no_entropy,
-        custom_vulnerability_db=args.db
+        custom_vulnerability_db=args.db,
+        measure_memory=True,
     )
 
     def cli_progress(current: int, total: int, filename: str):

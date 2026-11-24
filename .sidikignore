@@ -1,0 +1,13 @@
+# Repository-local research datasets, benchmark results, and curation scripts
+figures/
+results/
+dataset/ground_truth/
+dataset/external/all_candidates.json
+dataset/external/ground_truth_secrets.json
+dataset/external/repos.json
+dataset/external/select_repos.py
+dataset/external/extract_all_candidates.py
+dataset/external/process_annotations.py
+dataset/dependencies_v2/_cache.json
+dataset/dependencies_v2/_cache.json.tmp
+sidik/data/pypi_advisories.json

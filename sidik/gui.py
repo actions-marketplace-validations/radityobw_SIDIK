@@ -12,6 +12,7 @@ Engineered with Python standard library (tkinter/ttk) and PIL:
 - Instant in-place bilingual switching (Bahasa Indonesia & English).
 """
 
+from importlib import resources
 import os
 import sys
 import threading
@@ -20,10 +21,7 @@ from typing import Optional, List, Dict, Any, Callable, cast
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 
-# Add workspace root to sys.path
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-if BASE_DIR not in sys.path:
-    sys.path.insert(0, BASE_DIR)
 
 from sidik.core import SecurityScanner
 from sidik.models import ScanReport, Finding
@@ -39,11 +37,19 @@ except ImportError:
     ImageDraw: Any = None
     ImageTk: Any = None
 
-try:
-    import ctypes
-    ctypes.windll.shcore.SetProcessDpiAwareness(1)
-except Exception:
-    pass
+
+def _resolve_asset_path(filename: str) -> Optional[str]:
+    """Resolves a branding asset from bundled sidik.assets first, falling back to repo logo/."""
+    try:
+        res = resources.files("sidik.assets").joinpath(filename)
+        if res.is_file():
+            return str(res)
+    except Exception:
+        pass
+    repo_candidate = os.path.join(BASE_DIR, "logo", filename)
+    if os.path.isfile(repo_candidate):
+        return repo_candidate
+    return None
 
 
 # ==============================================================================
@@ -905,18 +911,16 @@ class SecurityAnalyzerGUI:
 
     def _set_app_icon(self):
         """Loads and applies official SIDIK logo as application window & taskbar icon."""
-        icon_ico = os.path.join(BASE_DIR, "logo", "sidik_icon.ico")
-        icon_png = os.path.join(BASE_DIR, "logo", "SIDIK-nobg-purelogo-dark.png")
-        if not os.path.exists(icon_png):
-            icon_png = os.path.join(BASE_DIR, "logo", "SIDIK-nobg-purelogo.png")
+        icon_ico = _resolve_asset_path("sidik_icon.ico")
+        icon_png = _resolve_asset_path("SIDIK-nobg-purelogo-dark.png") or _resolve_asset_path("SIDIK-nobg-purelogo.png")
 
-        if sys.platform.startswith("win") and os.path.exists(icon_ico):
+        if sys.platform.startswith("win") and icon_ico and os.path.exists(icon_ico):
             try:
                 self.root.iconbitmap(icon_ico)
             except Exception:
                 pass
 
-        if os.path.exists(icon_png):
+        if icon_png and os.path.exists(icon_png):
             try:
                 if HAS_PIL:
                     pil_img = Image.open(icon_png)
@@ -942,10 +946,8 @@ class SecurityAnalyzerGUI:
         header.pack(fill="x", side="top")
         header.pack_propagate(False)
 
-        logo_path = os.path.join(BASE_DIR, "logo", "SIDIK-nobg-purelogo-dark.png")
-        if not os.path.exists(logo_path):
-            logo_path = os.path.join(BASE_DIR, "logo", "SIDIK-nobg-purelogo.png")
-        if os.path.exists(logo_path) and HAS_PIL:
+        logo_path = _resolve_asset_path("SIDIK-nobg-purelogo-dark.png") or _resolve_asset_path("SIDIK-nobg-purelogo.png")
+        if logo_path and os.path.exists(logo_path) and HAS_PIL:
             try:
                 pil_img = Image.open(logo_path)
                 logo_img = ImageTk.PhotoImage(pil_img.resize((40, 40), Image.Resampling.LANCZOS))
@@ -2047,11 +2049,9 @@ class SecurityAnalyzerGUI:
                                 highlightthickness=1, highlightbackground=self.colors["card_border"], padx=24, pady=20)
         scroll_frame.pack(fill="both", expand=True, padx=14, pady=10)
 
-        about_logo_path = os.path.join(BASE_DIR, "logo", "SIDIK-nobg-dark.png")
-        if not os.path.exists(about_logo_path):
-            about_logo_path = os.path.join(BASE_DIR, "logo", "SIDIK-nobg.png")
+        about_logo_path = _resolve_asset_path("SIDIK-nobg-dark.png") or _resolve_asset_path("SIDIK-nobg.png")
 
-        if os.path.exists(about_logo_path) and HAS_PIL:
+        if about_logo_path and os.path.exists(about_logo_path) and HAS_PIL:
             try:
                 pil_img = Image.open(about_logo_path)
                 disp_w = 260
@@ -2247,7 +2247,8 @@ class SecurityAnalyzerGUI:
                 enable_secret_scan=self.var_secret.get(),
                 enable_dependency_scan=self.var_dep.get(),
                 enable_context=self.var_context.get(),
-                enable_entropy=self.var_entropy.get()
+                enable_entropy=self.var_entropy.get(),
+                measure_memory=True,
             )
             report = scanner.scan_path(target, progress_callback=on_progress)
             self.root.after(0, self._scan_completed, report)
@@ -2661,8 +2662,9 @@ class SecurityAnalyzerGUI:
         if not self.last_report:
             return
 
+        results_dir = os.path.join(BASE_DIR, "results")
         fpath = filedialog.asksaveasfilename(
-            initialdir=os.path.join(BASE_DIR, "results"),
+            initialdir=results_dir if os.path.isdir(results_dir) else os.getcwd(),
             title=t("dialog_export_title"),
             defaultextension=".html",
             filetypes=[
@@ -2699,7 +2701,7 @@ class SecurityAnalyzerGUI:
             if fpath.endswith(".html") or fpath.endswith(".htm"):
                 should_open = messagebox.askyesno(
                     t("dialog_export_success_title"),
-                    f"{t('dialog_export_success_body', path=fpath)}\n\nBuka dasbor HTML di browser sekarang?"
+                    f"{t('dialog_export_success_body', path=fpath)}\n\n{t('dialog_export_open_html_prompt')}"
                 )
                 if should_open:
                     webbrowser.open(f"file:///{os.path.abspath(fpath)}")
@@ -2710,6 +2712,12 @@ class SecurityAnalyzerGUI:
 
 
 def main():
+    if sys.platform == "win32":
+        try:
+            import ctypes
+            ctypes.windll.shcore.SetProcessDpiAwareness(1)
+        except Exception:
+            pass
     root = tk.Tk()
     app = SecurityAnalyzerGUI(root)
     root.mainloop()

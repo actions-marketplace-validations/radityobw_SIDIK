@@ -37,8 +37,8 @@ TRANSLATIONS: Dict[str, Dict[str, str]] = {
         "en": "- Secret Identification and Dependency Inspection Kit (Python)"
     },
     "app_version": {
-        "id": "v1.0 (Research Edition)",
-        "en": "v1.0 (Research Edition)"
+        "id": "v1.1 (Research Edition)",
+        "en": "v1.1 (Research Edition)"
     },
     "lang_toggle_btn": {
         "id": "English (EN)",
@@ -377,6 +377,10 @@ TRANSLATIONS: Dict[str, Dict[str, str]] = {
     "dialog_export_error_title": {
         "id": "Gagal Menyimpan",
         "en": "Export Failed"
+    },
+    "dialog_export_open_html_prompt": {
+        "id": "Buka dasbor HTML di browser sekarang?",
+        "en": "Open the HTML dashboard in your browser now?"
     },
 
     # Research Tab (Tab 2)

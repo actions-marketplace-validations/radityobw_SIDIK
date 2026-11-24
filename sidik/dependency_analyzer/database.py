@@ -1,5 +1,6 @@
 """Vulnerability advisory database for Python packages (OSV / GHSA format)."""
 
+from importlib import resources
 import json
 import logging
 import os
@@ -139,7 +140,7 @@ BUILTIN_ADVISORIES: List[Dict[str, Any]] = [
 ]
 
 
-# Module-level cache for the default OSV advisory database so repeated scans do not re-parse 12.5 MB JSON
+# Module-level cache for the default OSV advisory database so repeated scans do not re-parse bundled OSV JSON
 _DEFAULT_DB_CACHE: Optional[Tuple[Dict[str, List[Dict[str, Any]]], Dict[str, Any], int]] = None
 
 
@@ -171,15 +172,34 @@ class VulnerabilityDatabase:
         return self._advisories
 
     @staticmethod
-    def _read_advisory_file(path: str) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
-        with open(path, "r", encoding="utf-8") as f:
-            data = json.load(f)
+    def _parse_advisory_payload(data: Any) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
         if isinstance(data, list):
             return data, {}
         if isinstance(data, dict) and isinstance(data.get("advisories"), list):
             meta = data.get("metadata")
             return data["advisories"], dict(meta) if isinstance(meta, dict) else {}
         raise ValueError("expected a JSON list or an object with an 'advisories' list")
+
+    @classmethod
+    def _read_advisory_file(cls, path: str) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
+        with open(path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        return cls._parse_advisory_payload(data)
+
+    @classmethod
+    def _read_bundled_osv(cls) -> Optional[Tuple[List[Dict[str, Any]], Dict[str, Any]]]:
+        """Loads bundled pypi_advisories.json via importlib.resources, falling back to DEFAULT_DB_PATH."""
+        try:
+            res = resources.files("sidik.data").joinpath("pypi_advisories.json")
+            if res.is_file():
+                with res.open("r", encoding="utf-8") as f:
+                    return cls._parse_advisory_payload(json.load(f))
+        except (ModuleNotFoundError, FileNotFoundError, OSError, ValueError) as exc:
+            logger.debug("Package resource lookup for sidik.data/pypi_advisories.json failed: %s", exc)
+
+        if os.path.isfile(DEFAULT_DB_PATH):
+            return cls._read_advisory_file(DEFAULT_DB_PATH)
+        return None
 
     def _load_database(self) -> None:
         global _DEFAULT_DB_CACHE
@@ -189,13 +209,20 @@ class VulnerabilityDatabase:
 
         raw_list: List[Dict[str, Any]] = list(BUILTIN_ADVISORIES)
 
-        if self._include_osv and os.path.isfile(DEFAULT_DB_PATH):
+        if self._include_osv:
             try:
-                items, meta = self._read_advisory_file(DEFAULT_DB_PATH)
-                raw_list.extend(items)
-                self.metadata = meta
+                loaded = self._read_bundled_osv()
+                if loaded is not None:
+                    items, meta = loaded
+                    raw_list.extend(items)
+                    self.metadata = meta
+                else:
+                    logger.warning(
+                        "Bundled OSV advisory database not found; falling back to %d built-in advisories only.",
+                        len(BUILTIN_ADVISORIES),
+                    )
             except (OSError, ValueError) as exc:
-                logger.warning("Failed to load bundled advisory database %s: %s", DEFAULT_DB_PATH, exc)
+                logger.warning("Failed to load bundled advisory database: %s", exc)
 
         if self._custom_db_path:
             if not os.path.isfile(self._custom_db_path):

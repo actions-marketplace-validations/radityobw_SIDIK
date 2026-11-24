@@ -28,11 +28,17 @@ jobs:
       - name: Install Dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install "packaging>=23.0" "pillow>=10.0.0"
+          pip install -e . "pillow>=10.0.0" "build>=1.0.0" "twine>=5.0.0"
 
       - name: Run Regression Unit Tests
         run: |
           python -m unittest discover tests -v
+
+      - name: Verify Wheel and Sdist Packaging
+        run: |
+          python -m build
+          python -m twine check dist/*
+          python -c "import zipfile, glob; whl=glob.glob('dist/*.whl')[0]; names=zipfile.ZipFile(whl).namelist(); assert 'sidik/data/pypi_advisories.json' in names and 'sidik/assets/SIDIK-nobg-purelogo-dark.png' in names, names"
 
       - name: Run SIDIK Self-Audit (Inline Annotations + Job Summary)
         run: |

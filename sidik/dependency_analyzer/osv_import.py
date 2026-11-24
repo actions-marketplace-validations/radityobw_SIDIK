@@ -26,6 +26,7 @@ DEFAULT_OUTPUT_PATH = os.path.join(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "pypi_advisories.json"
 )
 MAX_DETAILS_CHARS = 400
+MAX_ZIP_UNCOMPRESSED_BYTES = 512 * 1024 * 1024  # 512 MB decompression guard
 
 SEVERITY_ALIASES = {
     "CRITICAL": "CRITICAL",
@@ -239,11 +240,18 @@ def build_database(records: Iterable[Dict[str, Any]], source: str, source_sha256
     }
 
 
-def read_zip_records(zip_bytes: bytes) -> Iterable[Dict[str, Any]]:
+def read_zip_records(zip_bytes: bytes, max_uncompressed_bytes: int = MAX_ZIP_UNCOMPRESSED_BYTES) -> Iterable[Dict[str, Any]]:
     with zipfile.ZipFile(io.BytesIO(zip_bytes)) as zf:
-        for name in zf.namelist():
+        total_uncompressed = 0
+        for info in zf.infolist():
+            name = info.filename
             if not name.lower().endswith(".json"):
                 continue
+            total_uncompressed += max(0, info.file_size)
+            if total_uncompressed > max_uncompressed_bytes:
+                raise ValueError(
+                    f"OSV archive uncompressed size exceeds limit ({max_uncompressed_bytes} bytes)"
+                )
             try:
                 data = json.loads(zf.read(name).decode("utf-8"))
             except (ValueError, UnicodeDecodeError):
@@ -253,7 +261,9 @@ def read_zip_records(zip_bytes: bytes) -> Iterable[Dict[str, Any]]:
 
 
 def download_osv_zip(url: str = OSV_PYPI_URL, timeout: int = 180) -> bytes:
-    with urllib.request.urlopen(url, timeout=timeout) as response:  # noqa: S310 (fixed https URL)
+    if not url.startswith("https://"):
+        raise ValueError(f"Refusing non-HTTPS OSV download URL: {url}")
+    with urllib.request.urlopen(url, timeout=timeout) as response:  # noqa: S310 (validated https URL)
         return response.read()
 
 

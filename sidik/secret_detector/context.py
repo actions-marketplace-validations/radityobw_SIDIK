@@ -35,7 +35,7 @@ def is_placeholder_or_mock(candidate: str, surrounding_line: str) -> Tuple[bool,
 
     # Exact match against AWS official documentation example key
     if candidate == AWS_DOC_SAMPLE:
-        return True, "AWS official documentation example key (AKIAIOSFODNN7EXAMPLE)"
+        return True, "AWS official documentation example key"
 
     # Trivial passwords/tokens
     if cand_lower in TRIVIAL_CANDIDATES:

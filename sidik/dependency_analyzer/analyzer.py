@@ -2,7 +2,7 @@
 
 import os
 from typing import List, Optional
-from sidik.models import Finding, SeverityLevel, ConfidenceScore
+from sidik.models import Finding, SeverityLevel, ConfidenceScore, compute_stable_id
 from sidik.dependency_analyzer.parsers import (
     parse_requirements_txt,
     parse_pyproject_toml,
@@ -65,7 +65,12 @@ class DependencyAnalyzer:
                 vuln, reason = is_version_vulnerable(spec.specifier, adv["vulnerable_specifier"])
                 if vuln:
                     reported.add(cve_id)
-                    finding_id = f"DEP-{cve_id}-{abs(hash(file_path + spec.package_name + spec.specifier)) % 100000:05d}"
+                    finding_id = compute_stable_id(
+                        f"DEP-{cve_id}",
+                        file_path.replace("\\", "/"),
+                        spec.package_name,
+                        spec.specifier,
+                    )
                     manifest_name = os.path.basename(file_path)
                     fixed_ver = adv.get("fixed_version")
                     remediation = get_dependency_remediation(

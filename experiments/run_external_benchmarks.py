@@ -15,6 +15,7 @@ Outputs formatted JSON and Markdown tables directly compatible with academic pap
 import json
 import os
 import re
+import shutil
 import statistics
 import subprocess
 import sys
@@ -38,10 +39,10 @@ RESULTS_DIR = os.path.join(SIDIK_ROOT, "results")
 os.makedirs(RESULTS_DIR, exist_ok=True)
 
 VENV_SCRIPTS = os.path.join(SIDIK_ROOT, ".venv", "Scripts")
-GITLEAKS_BIN = os.path.join(VENV_SCRIPTS, "gitleaks.exe")
-BANDIT_BIN = os.path.join(VENV_SCRIPTS, "bandit.exe")
-TRIVY_BIN = os.path.join(VENV_SCRIPTS, "trivy.exe")
-PIPAUDIT_BIN = os.path.join(VENV_SCRIPTS, "pip-audit.exe")
+GITLEAKS_BIN = shutil.which("gitleaks") or os.path.join(VENV_SCRIPTS, "gitleaks.exe")
+BANDIT_BIN = shutil.which("bandit") or os.path.join(VENV_SCRIPTS, "bandit.exe")
+TRIVY_BIN = shutil.which("trivy") or os.path.join(VENV_SCRIPTS, "trivy.exe")
+PIPAUDIT_BIN = shutil.which("pip-audit") or os.path.join(VENV_SCRIPTS, "pip-audit.exe")
 
 
 def run_repo_case_studies() -> Dict[str, Any]:
@@ -51,7 +52,7 @@ def run_repo_case_studies() -> Dict[str, Any]:
     gt_secrets = json.load(open(GT_SECRETS_PATH, encoding="utf-8"))["annotations"]
     gt_map = {(a["repo"], a["file"], a["line"]): a["ground_truth"] for a in gt_secrets}
 
-    scanner = SecurityScanner()
+    scanner = SecurityScanner(measure_memory=True)
     case_studies = []
 
     total_files = 0

@@ -12,6 +12,7 @@ Produces:
 
 import json
 import os
+import shutil
 import subprocess
 import sys
 from typing import Any, Dict, List
@@ -26,9 +27,10 @@ REPOS_PATH = os.path.join(BASE_DIR, "repos.json")
 ALL_CANDIDATES_PATH = os.path.join(BASE_DIR, "all_candidates.json")
 
 VENV_SCRIPTS = os.path.join(SIDIK_ROOT, ".venv", "Scripts")
-GITLEAKS_BIN = os.path.join(VENV_SCRIPTS, "gitleaks.exe")
-BANDIT_BIN = os.path.join(VENV_SCRIPTS, "bandit.exe")
-TRUFFLEHOG_BIN = os.path.join(VENV_SCRIPTS, "trufflehog.exe")
+GITLEAKS_BIN = shutil.which("gitleaks") or os.path.join(VENV_SCRIPTS, "gitleaks.exe")
+BANDIT_BIN = shutil.which("bandit") or os.path.join(VENV_SCRIPTS, "bandit.exe")
+TRIVY_BIN = shutil.which("trivy") or os.path.join(VENV_SCRIPTS, "trivy.exe")
+TRUFFLEHOG_BIN = shutil.which("trufflehog") or os.path.join(VENV_SCRIPTS, "trufflehog.exe")
 
 
 def run_sidik(repo_dir: str, repo_name: str) -> List[Dict[str, Any]]:

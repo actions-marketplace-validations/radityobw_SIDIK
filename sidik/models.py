@@ -2,8 +2,18 @@
 
 from dataclasses import dataclass, field, asdict
 from enum import Enum
-from typing import Dict, Any, List, Optional
+import hashlib
 import time
+from typing import Dict, Any, List, Optional
+
+CANDIDATE_SCHEMA_VERSION = "1.0.0"
+
+
+def compute_stable_id(prefix: str, *parts: str, length: int = 12) -> str:
+    """Computes a process-independent deterministic identifier using SHA-256."""
+    payload = "\x1f".join(parts).encode("utf-8")
+    digest = hashlib.sha256(payload).hexdigest()[:length]
+    return f"{prefix}-{digest}"
 
 
 class SeverityLevel(str, Enum):
@@ -18,6 +28,39 @@ class ConfidenceScore(str, Enum):
     HIGH = "HIGH"
     MEDIUM = "MEDIUM"
     LOW = "LOW"
+
+
+@dataclass
+class SecretCandidate:
+    """Structured pre-triage secret candidate contract for downstream analytics and SIDIK-ML.
+
+    Never stores the raw secret literal; exposes only masked_value and one-way value_sha256.
+    """
+    candidate_id: str
+    schema_version: str = CANDIDATE_SCHEMA_VERSION
+    rule_id: str = ""
+    rule_name: str = ""
+    category: str = ""
+    severity: SeverityLevel = SeverityLevel.MEDIUM
+    masked_value: str = ""
+    value_sha256: str = ""
+    file_path: str = ""
+    line_number: int = 0
+    column_start: int = 0
+    column_end: int = 0
+    entropy: float = 0.0
+    string_stats: Dict[str, Any] = field(default_factory=dict)
+    lexical_context: Dict[str, Any] = field(default_factory=dict)
+    pattern_evidence: Dict[str, Any] = field(default_factory=dict)
+    code_context: Dict[str, Any] = field(default_factory=dict)
+    file_context: Dict[str, Any] = field(default_factory=dict)
+    deterministic_decision: Dict[str, Any] = field(default_factory=dict)
+    metadata: Dict[str, Any] = field(default_factory=dict)
+
+    def to_dict(self) -> Dict[str, Any]:
+        d = asdict(self)
+        d["severity"] = self.severity.value if isinstance(self.severity, SeverityLevel) else self.severity
+        return d
 
 
 @dataclass
