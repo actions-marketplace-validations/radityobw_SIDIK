@@ -5,6 +5,8 @@ import json
 import re
 from dataclasses import dataclass
 from typing import List, Dict, Optional, Tuple
+from urllib.parse import unquote
+from packaging.version import InvalidVersion, Version
 
 try:
     import tomllib
@@ -27,15 +29,126 @@ def normalize_package_name(name: str) -> str:
     return re.sub(r"[-_.]+", "-", name).lower().strip()
 
 
-def _parse_pep508_requirement(raw_entry: str) -> Optional[Tuple[str, str]]:
-    """Parses a PEP 508 dependency declaration into (normalized_name, specifier_or_star).
+_VCS_OR_URL_PREFIXES = ("git+", "hg+", "svn+", "bzr+", "http://", "https://")
+_SHA_REF_RE = re.compile(r"^[0-9a-fA-F]{7,64}$")
 
-    Supports extras (e.g., ``requests[security,socks]>=2.25.0``) and strips environment
-    markers (e.g., ``; python_version < '3.11'``).
+
+def _extract_version_from_ref(ref: Optional[str]) -> Optional[str]:
+    """Extracts a dotted PEP 440 release version (e.g., v2.19.0 -> ==2.19.0) from a Git ref/tag."""
+    if not ref:
+        return None
+    cleaned = ref.strip().strip("\"'")
+    if not cleaned or _SHA_REF_RE.match(cleaned):
+        return None
+    m = re.search(
+        r"(?:^|[-_/vV])([0-9]+\.[0-9]+(?:\.[0-9]+)*(?:(?:a|b|rc|post|dev)[0-9]+)?)$",
+        cleaned,
+    )
+    if not m:
+        return None
+    ver_str = m.group(1)
+    try:
+        Version(ver_str)
+    except InvalidVersion:
+        return None
+    return f"=={ver_str}"
+
+
+def _extract_name_and_spec_from_url(
+    raw_url: str,
+    fallback_name: Optional[str] = None,
+) -> Optional[Tuple[str, str]]:
+    """Extracts (normalized_name, version_spec_or_star) from a VCS repo or archive/wheel URL."""
+    url = raw_url.strip().strip("\"'")
+    if not url:
+        return None
+
+    base_url, _, frag = url.partition("#")
+    egg_name: Optional[str] = None
+    if frag:
+        m_egg = re.search(r"(?:^|&)egg=([^&\s]+)", frag)
+        if m_egg:
+            raw_egg = unquote(m_egg.group(1)).split("[", 1)[0].strip()
+            if raw_egg:
+                egg_name = raw_egg
+
+    if "://" not in base_url:
+        return None
+    _, rest = base_url.split("://", 1)
+    _, _, path_part = rest.partition("/")
+    clean_path = path_part
+    ref_part: Optional[str] = None
+    if "@" in path_part:
+        clean_path, ref_part = path_part.rsplit("@", 1)
+
+    spec = _extract_version_from_ref(ref_part)
+    segs = [unquote(s) for s in clean_path.split("/") if s]
+    last_seg = segs[-1] if segs else ""
+    pkg_from_url: Optional[str] = None
+
+    if last_seg.endswith(".whl"):
+        parts = last_seg[:-4].split("-")
+        if len(parts) >= 2:
+            pkg_from_url = parts[0]
+            if not spec:
+                try:
+                    Version(parts[1])
+                    spec = f"=={parts[1]}"
+                except InvalidVersion:
+                    pass
+    else:
+        stripped_seg = re.sub(r"\.(?:tar\.gz|tar\.bz2|tar\.xz|tgz|zip)$", "", last_seg, flags=re.IGNORECASE)
+        is_archive = stripped_seg != last_seg
+        if is_archive and "/archive/" in f"/{clean_path.lower()}/":
+            # GitHub/GitLab tag archive e.g. /owner/repo/archive/refs/tags/v1.26.5.tar.gz
+            if not spec:
+                spec = _extract_version_from_ref(stripped_seg)
+            try:
+                arch_idx = [s.lower() for s in segs].index("archive")
+                if arch_idx > 0:
+                    pkg_from_url = segs[arch_idx - 1]
+            except ValueError:
+                pass
+        elif is_archive:
+            m_sdist = re.match(
+                r"^([a-zA-Z0-9_.\-]+?)-([0-9]+\.[0-9]+(?:\.[0-9a-zA-Z]+)*)$",
+                stripped_seg,
+            )
+            if m_sdist:
+                pkg_from_url = m_sdist.group(1)
+                if not spec:
+                    spec = _extract_version_from_ref(m_sdist.group(2))
+            else:
+                pkg_from_url = stripped_seg
+        elif last_seg:
+            pkg_from_url = last_seg[:-4] if last_seg.endswith(".git") else last_seg
+
+    chosen_name = fallback_name or egg_name or pkg_from_url
+    if not chosen_name:
+        return None
+    return normalize_package_name(chosen_name), spec or "*"
+
+
+def _parse_pep508_requirement(raw_entry: str) -> Optional[Tuple[str, str]]:
+    """Parses a PEP 508 declaration, direct URL (pkg @ git+...), or VCS/archive URL.
+
+    Supports extras (e.g., ``requests[security,socks]>=2.25.0``), strips environment
+    markers (e.g., ``; python_version < '3.11'``), and resolves Git tag refs when present.
     """
     cleaned = raw_entry.split(";", 1)[0].strip()
     if not cleaned:
         return None
+
+    m_direct = re.match(
+        r"^([a-zA-Z0-9_\-\.]+)(?:\[[a-zA-Z0-9_,\-\.\s]+\])?\s*@\s*(\S+)$",
+        cleaned,
+    )
+    if m_direct:
+        return _extract_name_and_spec_from_url(m_direct.group(2), fallback_name=m_direct.group(1))
+
+    if cleaned.lower().startswith(_VCS_OR_URL_PREFIXES):
+        return _extract_name_and_spec_from_url(cleaned)
+
     # Strip PEP 508 extras before matching specifier
     match = re.match(
         r"^([a-zA-Z0-9_\-\.]+)(?:\[[a-zA-Z0-9_,\-\.\s]+\])?\s*([=><~^!].*)?$",
@@ -49,19 +162,28 @@ def _parse_pep508_requirement(raw_entry: str) -> Optional[Tuple[str, str]]:
 
 
 def parse_requirements_txt(content: str) -> List[DependencySpec]:
-    """Parses standard requirements.txt content."""
+    """Parses standard requirements.txt content including VCS/Git and editable URLs."""
     specs = []
     lines = content.splitlines()
 
     for idx, line in enumerate(lines, start=1):
         stripped = line.strip()
-        # Skip empty lines, comments, and pip options (-r, -i, etc.)
-        if not stripped or stripped.startswith("#") or stripped.startswith("-"):
+        if not stripped or stripped.startswith("#"):
             continue
 
-        # Strip inline comments
+        # Strip inline comments preceded by whitespace
         if " #" in stripped:
             stripped = stripped.split(" #", 1)[0].strip()
+
+        m_edit = re.match(r"^(?:-e|--editable)(?:\s+|=)(\S+)$", stripped)
+        if m_edit:
+            target_url = m_edit.group(1).strip()
+            if target_url.lower().startswith(_VCS_OR_URL_PREFIXES):
+                stripped = target_url
+            else:
+                continue
+        elif stripped.startswith("-"):
+            continue
 
         parsed = _parse_pep508_requirement(stripped)
         if parsed:
@@ -152,8 +274,8 @@ def parse_pyproject_toml(content: str) -> List[DependencySpec]:
             pkg_name = normalize_package_name(pkg)
             if isinstance(val, str):
                 spec = val
-            elif isinstance(val, dict) and "version" in val:
-                spec = str(val["version"])
+            elif isinstance(val, dict):
+                spec = _spec_from_manifest_dict(pkg_name, val)
             else:
                 spec = "*"
             specs.append(DependencySpec(
@@ -229,24 +351,46 @@ def parse_uv_lock(content: str) -> List[DependencySpec]:
     return specs
 
 
+def _spec_from_manifest_dict(pkg_name: str, meta: Dict[object, object]) -> str:
+    """Resolves a version specifier from Poetry/Pipfile dict entries ({version, git, tag, ref, url})."""
+    if "version" in meta:
+        return str(meta["version"]).strip("\"'") or "*"
+    for ref_key in ("tag", "ref", "rev"):
+        if ref_key in meta and isinstance(meta[ref_key], str):
+            v_ref = _extract_version_from_ref(meta[ref_key])
+            if v_ref:
+                return v_ref
+    for url_key in ("url", "git", "file"):
+        if url_key in meta and isinstance(meta[url_key], str):
+            parsed = _extract_name_and_spec_from_url(meta[url_key], fallback_name=pkg_name)
+            if parsed and parsed[1] != "*":
+                return parsed[1]
+    return "*"
+
+
 def parse_pipfile(content: str) -> List[DependencySpec]:
-    """Parses Pipfile TOML sections."""
+    """Parses Pipfile [packages] and [dev-packages] TOML sections."""
     specs = []
     try:
         data = tomllib.loads(content)
     except Exception:
         return specs
 
-    packages = data.get("packages", {})
-    if isinstance(packages, dict):
+    for section in ("packages", "dev-packages"):
+        packages = data.get(section, {})
+        if not isinstance(packages, dict):
+            continue
         for pkg, val in packages.items():
+            if not isinstance(pkg, str):
+                continue
+            pkg_name = normalize_package_name(pkg)
             if isinstance(val, dict):
-                spec = str(val.get("version", "*")).strip('"\'')
+                spec = _spec_from_manifest_dict(pkg_name, val)
             else:
-                spec = str(val).strip('"\'')
+                spec = str(val).strip("\"'") or "*"
             specs.append(DependencySpec(
-                package_name=normalize_package_name(pkg),
-                specifier=spec or "*",
+                package_name=pkg_name,
+                specifier=spec,
                 raw_line=f"{pkg} = {val}",
                 line_number=0,
                 manifest_type="Pipfile"

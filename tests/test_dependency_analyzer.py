@@ -77,6 +77,70 @@ class TestDependencyAnalyzer(unittest.TestCase):
         self.assertEqual(specs[0].package_name, "requests")
         self.assertEqual(specs[1].package_name, "django")
 
+    def test_parse_git_repo_and_direct_url_dependencies(self):
+        import os
+        import tempfile
+
+        req_content = """
+        requests @ git+https://github.com/psf/requests.git@v2.19.0
+        git+ssh://git@github.com/psf/requests.git@v2.32.3#egg=requests
+        -e git+https://github.com/urllib3/urllib3.git@1.26.5#egg=urllib3
+        urllib3 @ https://github.com/urllib3/urllib3/archive/refs/tags/v1.26.5.tar.gz
+        django @ https://files.pythonhosted.org/packages/django-3.2.5-py3-none-any.whl
+        flask @ git+https://github.com/pallets/flask.git@main
+        flask @ git+https://github.com/pallets/flask.git@0123456789abcdef
+        -e .
+        -r base.txt
+        """
+        specs = parse_requirements_txt(req_content)
+        self.assertEqual([(s.package_name, s.specifier) for s in specs], [
+            ("requests", "==2.19.0"),
+            ("requests", "==2.32.3"),
+            ("urllib3", "==1.26.5"),
+            ("urllib3", "==1.26.5"),
+            ("django", "==3.2.5"),
+            ("flask", "*"),
+            ("flask", "*"),
+        ])
+
+        poetry_toml = """
+        [tool.poetry.dependencies]
+        python = "^3.9"
+        requests = { git = "https://github.com/psf/requests.git", tag = "v2.19.0" }
+        urllib3 = { url = "https://github.com/urllib3/urllib3/archive/refs/tags/v1.26.5.tar.gz" }
+        """
+        p_specs = parse_pyproject_toml(poetry_toml)
+        self.assertEqual([(s.package_name, s.specifier) for s in p_specs], [
+            ("requests", "==2.19.0"),
+            ("urllib3", "==1.26.5"),
+        ])
+
+        pipfile_toml = """
+        [packages]
+        requests = { git = "https://github.com/psf/requests.git", ref = "v2.19.0" }
+
+        [dev-packages]
+        django = { git = "https://github.com/django/django.git", ref = "3.2.5" }
+        """
+        pf_specs = parse_pipfile(pipfile_toml)
+        self.assertEqual([(s.package_name, s.specifier) for s in pf_specs], [
+            ("requests", "==2.19.0"),
+            ("django", "==3.2.5"),
+        ])
+
+        # End-to-end SCA scan: vulnerable Git tag detects CVE-2023-32681; safe Git tag v2.32.3 avoids it
+        with tempfile.TemporaryDirectory() as tmp:
+            vuln_req = os.path.join(tmp, "requirements.txt")
+            with open(vuln_req, "w", encoding="utf-8") as fh:
+                fh.write("requests @ git+https://github.com/psf/requests.git@v2.19.0\n")
+            findings_vuln = DependencyAnalyzer().scan_directory(tmp)
+            self.assertTrue(any("CVE-2023-32681" in (f.metadata.get("cve") or f.title) for f in findings_vuln))
+
+            with open(vuln_req, "w", encoding="utf-8") as fh:
+                fh.write("requests @ git+https://github.com/psf/requests.git@v2.32.3\n")
+            findings_safe = DependencyAnalyzer().scan_directory(tmp)
+            self.assertFalse(any("CVE-2023-32681" in (f.metadata.get("cve") or f.title) for f in findings_safe))
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -2,6 +2,12 @@
 
 Seluruh perubahan penting pada paket `sidik` (sebelumnya `sidik-security`) didokumentasikan pada berkas ini.
 
+## [1.3.8] - 2026-11-25
+
+### Ditingkatkan (Dukungan Dependensi URL Repositori Git/VCS & *Archive* di Mesin SCA)
+- **Parser URL Git/VCS & *Direct Archive* ([`parsers.py`](sidik/dependency_analyzer/parsers.py)):** Menambahkan penguraian dependensi berbasis URL repositori Git/VCS dan tautan arsip/wheel langsung (`pkg @ git+https://...@vX.Y.Z`, `git+ssh://git@...@tag#egg=pkg`, `-e git+...`, `archive/refs/tags/vX.Y.Z.tar.gz`, serta `*.whl`) pada `requirements*.txt`, `pyproject.toml` (PEP 621, PEP 735, Poetry `{git, tag/url}`), `setup.py`, dan `Pipfile` (`[packages]` & `[dev-packages]` `{git, ref}`).
+- **Ekstraksi *Tag* Versi Aman ([`_extract_version_from_ref()`](sidik/dependency_analyzer/parsers.py)):** Mengonversi *tag* rilis PEP 440 (`v2.19.0`, `1.26.5`, `release-1.26.5`) menjadi pin eksak `==<versi>` agar CVE terdeteksi akurat sekaligus menghindari *false positive* pada *tag* versi aman, sementara cabang/*commit* non-semver tetap ditandai sebagai dependensi belum dipin (`*`).
+
 ## [1.3.7] - 2026-11-25
 
 ### Ditingkatkan (Arsitektur *Zero Version Drift* & *Live Metadata*)
