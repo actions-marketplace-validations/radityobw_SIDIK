@@ -9,7 +9,7 @@
 
 [![Python 3.9+](https://img.shields.io/badge/Python-3.9%2B-3b82f6.svg)](#)
 [![Offline OSV DB](https://img.shields.io/badge/Offline%20OSV%20DB-29%2C208%20Advisories-10b981.svg)](#)
-[![Unit Tests](https://img.shields.io/badge/Unit%20Tests-58%2F58%20Passing-22c55e.svg)](#)
+[![Unit Tests](https://img.shields.io/badge/Unit%20Tests-62%2F62%20Passing-22c55e.svg)](#)
 [![License: MIT](https://img.shields.io/badge/License-MIT-a855f7.svg)](#)
 
 </div>
@@ -153,12 +153,20 @@ Seluruh hasil pengujian direkam secara transparan di direktori [`results/`](resu
 
 ## 🚀 Panduan Penggunaan Cepat (*Quick Start*)
 
-### 1. Instalasi Dependensi & Paket
-Pastikan Python `3.9+` telah terpasang, lalu pasang paket beserta dependensi:
+### 1. Instalasi Dependensi & Aktivasi *Virtual Environment*
+Pastikan Python `3.9+` telah terpasang, lalu buat/aktifkan `.venv` dan pasang paket beserta dependensi:
 ```bash
+# Buat & aktifkan virtual environment (disarankan)
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1          # Windows PowerShell
+# source .venv/bin/activate           # Linux / macOS
+
 pip install -e ".[gui]"
-# atau: pip install -r requirements.txt
+# Opsional: pasang ekstensi ML pada venv yang sama
+# pip install -e ..\SIDIK-ML
 ```
+
+> **Catatan Windows PowerShell:** Jika Anda masuk ke direktori `.venv\Scripts` tanpa mengaktifkan `.\Activate.ps1`, gunakan awalan `.\` saat menjalankan skrip konsol (misalnya `.\sidik -i`, `.\sidik-gui`, atau `.\sidik-ml gui`). Jika aktivasi dibatasi kebijakan eksekusi, jalankan langsung melalui `python -m sidik ...`.
 
 ### *Structured Candidate Contract* (`SIDIK` -> `SIDIK-ML`)
 Sejak `v1.1.0`, `SecurityScanner.extract_secret_candidates()` dan `SecretDetector.extract_candidates()` menyediakan objek berversi `SecretCandidate` (`schema_version = "1.0.0"`, `compute_stable_id()` berbasis SHA-256) tanpa menyimpan nilai rahasia mentah (`masked_value` + `value_sha256`).
@@ -191,11 +199,16 @@ python -m sidik --target dataset/external/_repos --format sarif --output results
 # Pasang Git Pre-Commit Hook otomatis & ambang batas CI/CD
 python -m sidik --install-hook
 python -m sidik --target . --fail-on high
+
+# Gunakan plugin ML opsional (jika sidik-ml terpasang di venv yang sama)
+sidik --list-plugins
+sidik --target . --enable-ml --ml-model path/ke/model.skops
+sidik -i --enable-ml
 ```
 
-### 5. Menjalankan 58 *Unit Test* & Eksperimen *Benchmark*
+### 5. Menjalankan 62 *Unit Test* & Eksperimen *Benchmark*
 ```bash
-# Jalankan seluruh 58 unit & integration tests
+# Jalankan seluruh 62 unit & integration tests
 python -m unittest discover tests -v
 
 # Jalankan eksperimen & buat ulang seluruh grafik riset
