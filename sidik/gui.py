@@ -513,11 +513,13 @@ class SegmentedTabBar(tk.Frame):
     def __init__(self, parent, tab_labels: List[str],
                  on_select: Callable[[int], None],
                  bg_color: str = COLORS["card"],
-                 border_color: str = COLORS["card_border"]):
+                 border_color: str = COLORS["card_border"],
+                 active_bg: str = COLORS["primary_dim"]):
         super().__init__(parent, bg=COLORS["bg"])
         self.tab_labels = tab_labels
         self.on_select = on_select
         self.active_index = 0
+        self.active_bg = active_bg
         self.buttons: List[tk.Label] = []
 
         self.capsule = tk.Frame(self, bg=bg_color, highlightthickness=1,
@@ -549,7 +551,7 @@ class SegmentedTabBar(tk.Frame):
     def _refresh_styles(self):
         for idx, btn in enumerate(self.buttons):
             if idx == self.active_index:
-                btn.configure(bg=COLORS["primary_dim"], fg="#ffffff")
+                btn.configure(bg=self.active_bg, fg="#ffffff")
             else:
                 btn.configure(bg=COLORS["card"], fg=COLORS["fg2"])
 
@@ -822,14 +824,47 @@ class SecurityAnalyzerGUI:
         ml_suppress_fp: bool = False,
         app_brand: Optional[str] = None,
     ):
+        from sidik import __version__ as SIDIK_VERSION
+
         self.root = root
-        brand_prefix = app_brand or "SIDIK"
-        self.root.title(f"{brand_prefix} - Secret Identification & Dependency Inspection Kit")
+        self.ml_plugin = get_plugin("sidik-ml")
+        self._sidik_version = SIDIK_VERSION
+        self._ml_version = str(getattr(self.ml_plugin, "version", "0.5.0")) if self.ml_plugin is not None else None
+        self.is_ml_edition = bool((app_brand and "ml" in app_brand.lower()) or enable_ml)
+
+        if self.is_ml_edition:
+            ml_v = self._ml_version or "0.5.0"
+            self.root.title(
+                f"SIDIK-ML v{ml_v} (Core SIDIK v{SIDIK_VERSION}) - Explainable Non-ANN ML False Positive Reduction"
+            )
+            self._accent = {
+                "primary": "#8b5cf6",
+                "dim": "#6d28d9",
+                "bright": "#c4b5fd",
+                "hover": "#7c3aed",
+                "card_hover": "#231a3a",
+                "header_bg": "#151226",
+                "header_border": "#4c1d95",
+                "ml_row_border": "#5b21b6",
+            }
+        else:
+            brand_prefix = app_brand or "SIDIK"
+            self.root.title(f"{brand_prefix} v{SIDIK_VERSION} - Secret Identification & Dependency Inspection Kit")
+            self._accent = {
+                "primary": COLORS["primary"],
+                "dim": COLORS["primary_dim"],
+                "bright": COLORS["primary_bright"],
+                "hover": "#2563eb",
+                "card_hover": "#1a2540",
+                "header_bg": COLORS["card"],
+                "header_border": COLORS["card_border"],
+                "ml_row_border": COLORS["card_border"],
+            }
+
         self.root.geometry("1280x820")
         self.root.minsize(1060, 680)
         self.root.configure(bg=COLORS["bg"])
 
-        self.ml_plugin = get_plugin("sidik-ml")
         self._initial_enable_ml = bool(enable_ml and self.ml_plugin is not None)
         self._ml_model_path = ml_model_path
         self._ml_sha256 = ml_sha256
@@ -850,12 +885,12 @@ class SecurityAnalyzerGUI:
         self.visible_findings: List[Finding] = []
         self.is_scanning = False
         self._image_refs: Dict[str, Any] = {}
-        # backward-compat shim: map self.colors to module-level COLORS
+        # backward-compat shim: map self.colors to module-level COLORS + edition accent
         self.colors = {
             "bg": COLORS["bg"], "card_bg": COLORS["card"],
             "card_border": COLORS["card_border"], "card_highlight": COLORS["card2"],
             "fg": COLORS["fg"], "fg_muted": COLORS["fg2"],
-            "primary": COLORS["primary_bright"], "primary_hover": COLORS["primary_bright"],
+            "primary": self._accent["bright"], "primary_hover": self._accent["bright"],
             "success": COLORS["success"], "warning": COLORS["warning"],
             "danger": COLORS["danger"], "purple": COLORS["purple"],
             "entry_bg": COLORS["entry"]
@@ -967,9 +1002,15 @@ class SecurityAnalyzerGUI:
 
     def _build_ui(self):
         """Constructs modern layout: header, nav, notebook tabs, status bar."""
-        # ── Header (Frosted Glass) ─────────────────────────────────────
-        header = tk.Frame(self.root, bg=COLORS["card"], height=64,
-                          highlightthickness=1, highlightbackground=COLORS["card_border"])
+        # ── Top Accent Strip & Header (Frosted Glass) ─────────────────
+        top_accent = tk.Frame(self.root, bg=self._accent["primary"], height=3)
+        top_accent.pack(fill="x", side="top")
+
+        header_bg = self._accent["header_bg"]
+        header_border = self._accent["header_border"]
+
+        header = tk.Frame(self.root, bg=header_bg, height=64,
+                          highlightthickness=1, highlightbackground=header_border)
         header.pack(fill="x", side="top")
         header.pack_propagate(False)
 
@@ -979,37 +1020,60 @@ class SecurityAnalyzerGUI:
                 pil_img = Image.open(logo_path)
                 logo_img = ImageTk.PhotoImage(pil_img.resize((40, 40), Image.Resampling.LANCZOS))
                 self._image_refs["header_logo"] = logo_img
-                tk.Label(header, image=logo_img, bg=COLORS["card"]).pack(
+                tk.Label(header, image=logo_img, bg=header_bg).pack(
                     side="left", padx=(16, 10), pady=12)
             except Exception:
                 pass
 
-        tk.Frame(header, bg=COLORS["card_border"], width=1).pack(
+        tk.Frame(header, bg=header_border, width=1).pack(
             side="left", fill="y", pady=14, padx=(0, 14))
 
-        title_block = tk.Frame(header, bg=COLORS["card"])
+        title_block = tk.Frame(header, bg=header_bg)
         title_block.pack(side="left")
-        self.title_lbl = tk.Label(title_block, text=t("app_title"),
-                                  bg=COLORS["card"], fg=COLORS["primary_bright"],
-                                  font=("Segoe UI", 14, "bold"))
-        self.title_lbl.pack(anchor="w")
-        self.subtitle_lbl = tk.Label(title_block, text=t("app_subtitle"),
-                                     bg=COLORS["card"], fg=COLORS["fg2"],
-                                     font=("Segoe UI", 8))
+
+        title_top = tk.Frame(title_block, bg=header_bg)
+        title_top.pack(anchor="w")
+        self.title_lbl = tk.Label(
+            title_top,
+            text=t("app_title_ml") if self.is_ml_edition else t("app_title"),
+            bg=header_bg, fg=self._accent["bright"],
+            font=("Segoe UI", 14, "bold")
+        )
+        self.title_lbl.pack(side="left")
+        if self.is_ml_edition:
+            self.ml_edition_pill = tk.Label(
+                title_top, text="NON-ANN ML", bg=self._accent["dim"], fg="#ffffff",
+                font=("Segoe UI", 7, "bold"), padx=7, pady=1
+            )
+            self.ml_edition_pill.pack(side="left", padx=(8, 0), pady=(2, 0))
+
+        self.subtitle_lbl = tk.Label(
+            title_block,
+            text=t("app_subtitle_ml") if self.is_ml_edition else t("app_subtitle"),
+            bg=header_bg, fg=COLORS["fg2"],
+            font=("Segoe UI", 8)
+        )
         self.subtitle_lbl.pack(anchor="w")
 
-        version_badge = tk.Label(header, text="v1.0  Research Edition",
-                                 bg=COLORS["card"], fg=COLORS["success"],
-                                 font=("Segoe UI", 8, "bold"))
-        version_badge.pack(side="right", padx=(0, 18))
+        if self.is_ml_edition:
+            ver_text = f"SIDIK-ML v{self._ml_version or '0.5.0'}  |  Core v{self._sidik_version}"
+            ver_fg = "#d8b4fe"
+        else:
+            ver_text = f"v{self._sidik_version}  Deterministic Edition"
+            ver_fg = COLORS["success"]
+
+        self.version_badge = tk.Label(
+            header, text=ver_text, bg=header_bg, fg=ver_fg, font=("Segoe UI", 8, "bold")
+        )
+        self.version_badge.pack(side="right", padx=(0, 18))
 
         cur_lang = get_current_language()
         toggle_label = "\U0001f310 English (EN)" if cur_lang == "id" else "\U0001f310 Indonesia (ID)"
         self.btn_lang = RoundedPillButton(
             header, text=toggle_label, command=self._toggle_language,
-            width=148, height=34, bg_parent=COLORS["card"],
-            fill_color=COLORS["card2"], hover_color="#1a2540",
-            border_color=COLORS["primary"], text_color=COLORS["primary_bright"]
+            width=148, height=34, bg_parent=header_bg,
+            fill_color=COLORS["card2"], hover_color=self._accent["card_hover"],
+            border_color=self._accent["primary"], text_color=self._accent["bright"]
         )
         self.btn_lang.pack(side="right", padx=(8, 8), pady=14)
 
@@ -1017,7 +1081,9 @@ class SecurityAnalyzerGUI:
         nav = tk.Frame(self.root, bg=COLORS["bg"], pady=10)
         nav.pack(fill="x", padx=16)
         tab_names = [t("tab_scanner"), t("tab_research"), t("tab_about")]
-        self.tab_bar = SegmentedTabBar(nav, tab_names, on_select=self._on_tab_selected)
+        self.tab_bar = SegmentedTabBar(
+            nav, tab_names, on_select=self._on_tab_selected, active_bg=self._accent["dim"]
+        )
         self.tab_bar.pack(side="left")
 
         # ── Content Notebook ───────────────────────────────────────────
@@ -1086,16 +1152,16 @@ class SecurityAnalyzerGUI:
         self.btn_folder = RoundedPillButton(
             path_row, text=t("btn_browse_folder"), command=self._browse_folder,
             width=120, height=30, bg_parent=COLORS["card"],
-            fill_color=COLORS["card2"], hover_color="#1a2540",
-            border_color=COLORS["primary"], text_color=COLORS["primary_bright"],
+            fill_color=COLORS["card2"], hover_color=self._accent["card_hover"],
+            border_color=self._accent["primary"], text_color=self._accent["bright"],
             font=("Segoe UI", 8, "bold"))
         self.btn_folder.pack(side="left", padx=3)
 
         self.btn_file = RoundedPillButton(
             path_row, text=t("btn_browse_file"), command=self._browse_file,
             width=110, height=30, bg_parent=COLORS["card"],
-            fill_color=COLORS["card2"], hover_color="#1a2540",
-            border_color=COLORS["primary"], text_color=COLORS["primary_bright"],
+            fill_color=COLORS["card2"], hover_color=self._accent["card_hover"],
+            border_color=self._accent["primary"], text_color=self._accent["bright"],
             font=("Segoe UI", 8, "bold"))
         self.btn_file.pack(side="left", padx=3)
 
@@ -1182,11 +1248,12 @@ class SecurityAnalyzerGUI:
         for chk in (self.chk_secret, self.chk_dep, self.chk_context, self.chk_entropy):
             chk.pack(side="left", padx=(0, 12))
 
+        scan_btn_key = "btn_scan_ml" if self.is_ml_edition else "btn_scan"
         self.btn_scan = RoundedPillButton(
-            opt_row, text=t("btn_scan"), command=self._start_scan,
-            width=180, height=34, bg_parent=COLORS["card"],
-            fill_color=COLORS["primary_dim"], hover_color="#2563eb",
-            border_color=COLORS["primary_bright"], text_color="#ffffff",
+            opt_row, text=t(scan_btn_key), command=self._start_scan,
+            width=215 if self.is_ml_edition else 180, height=34, bg_parent=COLORS["card"],
+            fill_color=self._accent["dim"], hover_color=self._accent["hover"],
+            border_color=self._accent["bright"], text_color="#ffffff",
             font=("Segoe UI", 9, "bold"))
         self.btn_scan.pack(side="right", padx=(10, 0))
 
@@ -1210,8 +1277,22 @@ class SecurityAnalyzerGUI:
         self.btn_save_chart.pack(side="right", padx=3)
 
         if self.ml_plugin is not None:
-            ml_row = tk.Frame(ctrl_card, bg=COLORS["card"])
+            ml_row = tk.Frame(
+                ctrl_card,
+                bg=COLORS["card"],
+                highlightthickness=1 if self.is_ml_edition else 0,
+                highlightbackground=self._accent["ml_row_border"],
+                padx=8 if self.is_ml_edition else 0,
+                pady=4 if self.is_ml_edition else 0,
+            )
             ml_row.pack(fill="x", pady=(6, 0))
+
+            if self.is_ml_edition:
+                self.ml_row_pill = tk.Label(
+                    ml_row, text="ML TRIAGE", bg=self._accent["dim"], fg="#ffffff",
+                    font=("Segoe UI", 7, "bold"), padx=6, pady=1
+                )
+                self.ml_row_pill.pack(side="left", padx=(0, 8))
 
             self.var_ml_enabled = tk.BooleanVar(value=self._initial_enable_ml)
             self.var_ml_suppress = tk.BooleanVar(value=self._ml_suppress_fp)
@@ -1234,7 +1315,7 @@ class SecurityAnalyzerGUI:
                 relief="flat",
                 highlightthickness=1,
                 highlightbackground=COLORS["card_border"],
-                highlightcolor=COLORS["primary"],
+                highlightcolor=self._accent["primary"],
             )
             self.ml_model_entry.pack(side="left", fill="x", expand=True, padx=(0, 6), ipady=3)
             if self._ml_model_path:
@@ -1248,9 +1329,9 @@ class SecurityAnalyzerGUI:
                 height=26,
                 bg_parent=COLORS["card"],
                 fill_color=COLORS["card2"],
-                hover_color="#1a2540",
-                border_color=COLORS["card_border"],
-                text_color=COLORS["primary_bright"],
+                hover_color=self._accent["card_hover"],
+                border_color=self._accent["ml_row_border"],
+                text_color=self._accent["bright"],
                 font=("Segoe UI", 8, "bold"),
             )
             self.btn_browse_model.pack(side="left", padx=(0, 10))
@@ -1269,7 +1350,7 @@ class SecurityAnalyzerGUI:
                 relief="flat",
                 highlightthickness=1,
                 highlightbackground=COLORS["card_border"],
-                highlightcolor=COLORS["primary"],
+                highlightcolor=self._accent["primary"],
             )
             self.ml_threshold_entry.pack(side="left", ipady=3)
             self.ml_threshold_entry.insert(0, f"{self._ml_threshold:.2f}")
@@ -1287,13 +1368,13 @@ class SecurityAnalyzerGUI:
         self.lbl_progress_file.pack(side="left", fill="x", expand=True)
 
         self.lbl_progress_pct = tk.Label(
-            progress_info, text="0%", bg=COLORS["card"], fg=COLORS["primary_bright"],
+            progress_info, text="0%", bg=COLORS["card"], fg=self._accent["bright"],
             font=("Segoe UI", 8, "bold"), anchor="e")
         self.lbl_progress_pct.pack(side="right")
 
         self.progress_bar = GlassProgressBar(
             self.progress_frame, height=10, bg_parent=COLORS["card"],
-            fill_color=COLORS["primary"], glow_color=COLORS["primary_bright"],
+            fill_color=self._accent["primary"], glow_color=self._accent["bright"],
             track_color="#080b0f", border_color=COLORS["card_border"])
         self.progress_bar.pack(fill="x", pady=(0, 2))
 
@@ -2164,6 +2245,17 @@ class SecurityAnalyzerGUI:
                                        font=("Segoe UI", 9), justify="left")
         self.lbl_about_desc.pack(anchor="w")
 
+        self.lbl_about_ml_desc = None
+        if self.is_ml_edition:
+            ml_div = tk.Frame(scroll_frame, bg=self._accent["header_border"], height=1)
+            ml_div.pack(fill="x", pady=(14, 12))
+            self.lbl_about_ml_desc = tk.Label(
+                scroll_frame, text=t("about_ml_features_text"),
+                bg=self.colors["card_bg"], fg="#e9d5ff",
+                font=("Segoe UI", 9), justify="left"
+            )
+            self.lbl_about_ml_desc.pack(anchor="w")
+
     # ==========================================
     # I18N DYNAMIC IN-PLACE LANGUAGE SWITCHING
     # ==========================================
@@ -2209,7 +2301,8 @@ class SecurityAnalyzerGUI:
             self.lbl_ml_model.configure(text=t("lbl_ml_model"))
             self.btn_browse_model.set_text(t("btn_browse_model"))
             self.lbl_ml_threshold.configure(text=t("lbl_ml_threshold"))
-        self.btn_scan.set_text(t("btn_scan") if not self.is_scanning else t("btn_scanning"))
+        scan_btn_key = "btn_scan_ml" if self.is_ml_edition else "btn_scan"
+        self.btn_scan.set_text(t(scan_btn_key) if not self.is_scanning else t("btn_scanning"))
         self.btn_export.set_text(t("btn_export"))
         self.btn_save_chart.set_text(t("btn_save_chart"))
 
@@ -2268,6 +2361,8 @@ class SecurityAnalyzerGUI:
         else:
             self._update_metrics_panel()
         self.lbl_about_desc.configure(text=t("about_features_text"))
+        if getattr(self, "lbl_about_ml_desc", None) is not None:
+            self.lbl_about_ml_desc.configure(text=t("about_ml_features_text"))
 
         # Status Bar
         if not self.is_scanning:
@@ -2412,7 +2507,8 @@ class SecurityAnalyzerGUI:
         self.is_scanning = False
         self.last_report = report
         self.all_findings = report.findings
-        self.btn_scan.configure(state="normal", text=t("btn_scan"))
+        scan_btn_key = "btn_scan_ml" if self.is_ml_edition else "btn_scan"
+        self.btn_scan.configure(state="normal", text=t(scan_btn_key))
         self.btn_export.configure(state="normal")
         self.btn_save_chart.configure(state="normal")
 
@@ -2466,7 +2562,8 @@ class SecurityAnalyzerGUI:
 
     def _scan_failed(self, err_msg: str):
         self.is_scanning = False
-        self.btn_scan.configure(state="normal", text=t("btn_scan"))
+        scan_btn_key = "btn_scan_ml" if self.is_ml_edition else "btn_scan"
+        self.btn_scan.configure(state="normal", text=t(scan_btn_key))
         self.btn_save_chart.configure(state="disabled")
         self._hide_progress_bar()
         self.status_bar.configure(text=t("status_failed", error=err_msg), fg=self.colors["danger"])

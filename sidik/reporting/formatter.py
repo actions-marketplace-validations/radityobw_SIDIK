@@ -25,6 +25,14 @@ if sys.platform == "win32":
         pass
 
 
+def _detect_ml_edition(report: ScanReport) -> bool:
+    """Returns True when any finding carries SIDIK-ML triage metadata."""
+    return any(
+        isinstance((getattr(f, "metadata", None) or {}).get("ml_triage"), dict)
+        for f in getattr(report, "findings", [])
+    )
+
+
 def _format_ml_triage_summary(ml_meta: Dict[str, Any]) -> str:
     """Formats optional SIDIK-ML triage metadata cleanly for console and Markdown output."""
     action = str(ml_meta.get("action", "KEEP_ALERT"))
@@ -94,8 +102,18 @@ class ReportFormatter:
         from sidik.i18n import get_secret_remediation, get_dependency_remediation
         s = report.summary
         is_id = (lang.lower() == "id")
+        is_ml = _detect_ml_edition(report)
 
-        title_sub = "### Laporan Otomatis Analisis Keamanan & Audit Kerentanan" if is_id else "### Automated Security Assessment & Vulnerability Audit Report"
+        if is_ml:
+            md_title = f"# 🛡️ SIDIK-ML Hybrid Triage (Core SIDIK v{SIDIK_VERSION}): Secret Identification and Dependency Inspection Kit"
+            title_sub = (
+                "### Laporan Analisis Keamanan & Klasifikasi Triage Non-ANN ML"
+                if is_id
+                else "### Automated Security Assessment & Explainable Non-ANN ML Triage Report"
+            )
+        else:
+            md_title = f"# 🛡️ SIDIK: Secret Identification and Dependency Inspection Kit (v{SIDIK_VERSION})"
+            title_sub = "### Laporan Otomatis Analisis Keamanan & Audit Kerentanan" if is_id else "### Automated Security Assessment & Vulnerability Audit Report"
         sum_heading = "## Ringkasan Eksekutif" if is_id else "## Summary"
         findings_heading = "## Temuan Keamanan" if is_id else "## Findings"
         detailed_heading = "### Rincian Temuan & Rekomendasi" if is_id else "### Detailed Findings"
@@ -119,7 +137,7 @@ class ReportFormatter:
         lbl_remed = "Rekomendasi Perbaikan" if is_id else "Remediation"
 
         md = [
-            "# 🛡️ SIDIK: Secret Identification and Dependency Inspection Kit",
+            md_title,
             title_sub,
             "",
             sum_heading,
@@ -190,6 +208,8 @@ class ReportFormatter:
     @staticmethod
     def to_sarif(report: ScanReport) -> str:
         """Formats report as OASIS SARIF v2.1.0 JSON for GitHub Code Scanning / Security tab integration."""
+        from sidik import __version__ as SIDIK_VERSION
+
         rules_map: Dict[str, Dict[str, Any]] = {}
         results_list = []
 
@@ -278,7 +298,7 @@ class ReportFormatter:
                         "driver": {
                             "name": "SIDIK",
                             "fullName": "SIDIK: Secret Identification and Dependency Inspection Kit",
-                            "version": "1.0.0",
+                            "version": SIDIK_VERSION,
                             "informationUri": "https://github.com/radityobw/SIDIK",
                             "rules": list(rules_map.values())
                         }
@@ -340,6 +360,7 @@ class ReportFormatter:
         from sidik.i18n import get_secret_remediation, get_dependency_remediation
         s = report.summary
         is_id = (lang.lower() == "id")
+        is_ml = _detect_ml_edition(report)
 
         # Auto-detect color support
         if use_color is None:
@@ -356,9 +377,12 @@ class ReportFormatter:
             C_BLUE = "\033[94m"
             C_GREEN = "\033[92m"
             C_CYAN = "\033[96m"
+            C_PURPLE = "\033[95m"
             C_WHITE = "\033[97m"
         else:
-            C_RESET = C_BOLD = C_DIM = C_RED = C_YELLOW = C_BLUE = C_GREEN = C_CYAN = C_WHITE = ""
+            C_RESET = C_BOLD = C_DIM = C_RED = C_YELLOW = C_BLUE = C_GREEN = C_CYAN = C_PURPLE = C_WHITE = ""
+
+        C_BORDER = C_PURPLE if is_ml else C_CYAN
 
         # Localized strings
         t_target = "Target:         " if not is_id else "Target:         "
@@ -383,10 +407,15 @@ class ReportFormatter:
             base_dir = os.path.dirname(base_dir)
 
         border_w = 82
+        header_title_line = (
+            f"{C_BOLD}{C_PURPLE} [SIDIK-ML Hybrid Triage]{C_RESET} {C_BOLD}{C_WHITE}SIDIK: Secret Identification and Dependency Inspection Kit (Core v{SIDIK_VERSION}){C_RESET}"
+            if is_ml
+            else f"{C_BOLD}{C_WHITE} SIDIK: Secret Identification and Dependency Inspection Kit (v{SIDIK_VERSION}){C_RESET}"
+        )
         lines = [
-            f"{C_CYAN}{'=' * border_w}{C_RESET}",
-            f"{C_BOLD}{C_WHITE} SIDIK: Secret Identification and Dependency Inspection Kit (v{SIDIK_VERSION}){C_RESET}",
-            f"{C_CYAN}{'=' * border_w}{C_RESET}",
+            f"{C_BORDER}{'=' * border_w}{C_RESET}",
+            header_title_line,
+            f"{C_BORDER}{'=' * border_w}{C_RESET}",
             f" {C_DIM}{t_target}{C_RESET} {C_WHITE}{s.target_path}{C_RESET}",
             f" {C_DIM}{t_files}{C_RESET} {s.total_files_scanned:<8} {C_DIM}{t_dur}{C_RESET} {s.scan_duration_seconds} {t_sec_unit}",
             f" {C_DIM}{t_secrets}{C_RESET} {s.total_secrets_found:<8} {C_DIM}{t_mem}{C_RESET} {s.peak_memory_mb} MB",
@@ -449,7 +478,7 @@ class ReportFormatter:
         else:
             lines.append(f" {C_GREEN}{t_clean}{C_RESET}")
 
-        lines.append(f"{C_CYAN}{'=' * border_w}{C_RESET}")
+        lines.append(f"{C_BORDER}{'=' * border_w}{C_RESET}")
         return "\n".join(lines)
 
     @staticmethod
@@ -459,6 +488,26 @@ class ReportFormatter:
         from sidik.i18n import get_secret_remediation, get_dependency_remediation
         s = report.summary
         is_id = (lang.lower() == "id")
+        is_ml = _detect_ml_edition(report)
+
+        if is_ml:
+            theme_primary = "#7c3aed"
+            theme_glow = "#a78bfa"
+            theme_accent = "#c4b5fd"
+            theme_header_bg = "linear-gradient(180deg, #1e1538 0%, var(--card-bg) 100%)"
+            theme_logo_shadow = "rgba(167, 139, 250, 0.55)"
+            theme_badge_grad = "linear-gradient(135deg, #6d28d9 0%, #a78bfa 100%)"
+            edition_pill = "<span class=\"edition-badge\">NON-ANN ML TRIAGE</span>"
+            edition_label = f"SIDIK-ML Hybrid (Core v{html.escape(SIDIK_VERSION)})"
+        else:
+            theme_primary = "#0284c7"
+            theme_glow = "#38bdf8"
+            theme_accent = "#38bdf8"
+            theme_header_bg = "linear-gradient(180deg, #131c31 0%, var(--card-bg) 100%)"
+            theme_logo_shadow = "rgba(56, 189, 248, 0.5)"
+            theme_badge_grad = "linear-gradient(135deg, #0284c7 0%, #38bdf8 100%)"
+            edition_pill = "<span class=\"edition-badge edition-core\">DETERMINISTIC CORE</span>"
+            edition_label = f"Core v{html.escape(SIDIK_VERSION)}"
 
         # Resolve official SIDIK logo as base64 data URI (prefer bundled sidik.assets over repo-local logo/)
         logo_bytes: Optional[bytes] = None
@@ -495,7 +544,10 @@ class ReportFormatter:
         low_n = sum(1 for f in report.findings if (f.severity.value if hasattr(f.severity, "value") else str(f.severity)) == "LOW")
 
         # Translations
-        t_page_title = "Dasbor Laporan Analisis Keamanan SIDIK" if is_id else "SIDIK Security Assessment Dashboard"
+        if is_ml:
+            t_page_title = "Dasbor Hybrid Keamanan SIDIK-ML" if is_id else "SIDIK-ML Hybrid Security Dashboard"
+        else:
+            t_page_title = "Dasbor Laporan Analisis Keamanan SIDIK" if is_id else "SIDIK Security Assessment Dashboard"
         t_subtitle = "Secret Identification and Dependency Inspection Kit"
         t_target_path = "Path Target" if is_id else "Target Path"
         t_timestamp = "Waktu Pemindaian" if is_id else "Scan Timestamp"
@@ -659,9 +711,9 @@ class ReportFormatter:
             --card-hover: #1e293b;
             --fg: #f3f4f6;
             --fg-muted: #94a3b8;
-            --primary: #0284c7;
-            --primary-glow: #38bdf8;
-            --cyan: #38bdf8;
+            --primary: {theme_primary};
+            --primary-glow: {theme_glow};
+            --cyan: {theme_accent};
             --danger: #ef4444;
             --danger-bg: rgba(239, 68, 68, 0.15);
             --warning: #f97316;
@@ -683,7 +735,7 @@ class ReportFormatter:
         }}
         .container {{ max-width: 1400px; margin: 0 auto; }}
         .header {{
-            background: linear-gradient(180deg, #131c31 0%, var(--card-bg) 100%);
+            background: {theme_header_bg};
             border: 1px solid var(--card-border);
             border-radius: 12px;
             padding: 24px 28px;
@@ -698,12 +750,12 @@ class ReportFormatter:
             width: 50px;
             height: 50px;
             object-fit: contain;
-            filter: drop-shadow(0 0 12px rgba(56, 189, 248, 0.5));
+            filter: drop-shadow(0 0 12px {theme_logo_shadow});
             border-radius: 8px;
             display: block;
         }}
         .header-title .logo-badge {{
-            background: linear-gradient(135deg, #0284c7 0%, #38bdf8 100%);
+            background: {theme_badge_grad};
             color: #ffffff;
             font-size: 24px;
             width: 48px;
@@ -712,7 +764,23 @@ class ReportFormatter:
             align-items: center;
             justify-content: center;
             border-radius: 10px;
-            box-shadow: 0 0 15px rgba(56, 189, 248, 0.4);
+            box-shadow: 0 0 15px {theme_logo_shadow};
+        }}
+        .edition-badge {{
+            display: inline-block;
+            margin-left: 10px;
+            padding: 2px 9px;
+            border-radius: 999px;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.4px;
+            vertical-align: middle;
+            background: #6d28d9;
+            color: #f5f3ff;
+        }}
+        .edition-badge.edition-core {{
+            background: #0369a1;
+            color: #e0f2fe;
         }}
         .header-title h1 {{ font-size: 22px; font-weight: 700; color: #ffffff; letter-spacing: -0.5px; }}
         .header-title p {{ font-size: 13px; color: var(--fg-muted); margin-top: 2px; }}
@@ -951,8 +1019,8 @@ class ReportFormatter:
         <div class="header-title">
             {logo_html}
             <div>
-                <h1>{html.escape(t_page_title)}</h1>
-                <p>{html.escape(t_subtitle)} &bull; Research Edition</p>
+                <h1>{html.escape(t_page_title)} {edition_pill}</h1>
+                <p>{html.escape(t_subtitle)} &bull; {edition_label}</p>
             </div>
         </div>
         <div class="header-actions">

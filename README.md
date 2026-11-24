@@ -8,7 +8,7 @@
 *Unified Offline Static Application Security Testing (SAST) & Software Composition Analysis (SCA) for Python*
 
 [![Python 3.9+](https://img.shields.io/badge/Python-3.9%2B-3b82f6.svg)](#)
-[![Version v1.2.0](https://img.shields.io/badge/Version-v1.2.0-0ea5e9.svg)](#)
+[![Version v1.3.0](https://img.shields.io/badge/Version-v1.3.0-0ea5e9.svg)](#)
 [![Plugin API](https://img.shields.io/badge/Plugin%20API-sidik.plugins-8b5cf6.svg)](#)
 [![Offline OSV DB](https://img.shields.io/badge/Offline%20OSV%20DB-29%2C208%20Advisories-10b981.svg)](#)
 [![Unit Tests](https://img.shields.io/badge/Unit%20Tests-62%2F62%20Passing-22c55e.svg)](#)
@@ -230,9 +230,9 @@ python experiments/generate_charts.py
 
 | Repositori | Peran Utama | Versi Terkini | Tautan |
 | :--- | :--- | :---: | :--- |
-| **SIDIK** | Mesin pemindai deterministik SAST & OSV SCA + host *plugin* UI | `v1.2.0` | [`github.com/radityobw/SIDIK`](https://github.com/radityobw/SIDIK) |
+| **SIDIK** | Mesin pemindai deterministik SAST & OSV SCA + host *plugin* UI | `v1.3.0` | [`github.com/radityobw/SIDIK`](https://github.com/radityobw/SIDIK) |
 | **SIDIK-paper** | Arsip manuskrip ilmiah & presentasi instrumen deterministik | `v1.0.0` | [`github.com/radityobw/SIDIK-paper`](https://github.com/radityobw/SIDIK-paper) |
-| **SIDIK-ML** | Perangkat lunak ekstensi *Explainable Non-ANN ML* & *plugin* | `v0.4.0` | [`github.com/radityobw/SIDIK-ML`](https://github.com/radityobw/SIDIK-ML) |
+| **SIDIK-ML** | Perangkat lunak ekstensi *Explainable Non-ANN ML* & *plugin* | `v0.5.0` | [`github.com/radityobw/SIDIK-ML`](https://github.com/radityobw/SIDIK-ML) |
 | **SIDIK-ML-paper** | Arsip riset, dataset kurasi, eksperimen, & manuskrip ML | `main` | [`github.com/radityobw/SIDIK-ML-paper`](https://github.com/radityobw/SIDIK-ML-paper) |
 
 ---
@@ -307,9 +307,9 @@ python -m unittest discover tests -v
 
 | Repository | Primary Role | Latest Version | Link |
 | :--- | :--- | :---: | :--- |
-| **SIDIK** | Deterministic SAST & OSV SCA core + UI plugin host | `v1.2.0` | [`github.com/radityobw/SIDIK`](https://github.com/radityobw/SIDIK) |
+| **SIDIK** | Deterministic SAST & OSV SCA core + UI plugin host | `v1.3.0` | [`github.com/radityobw/SIDIK`](https://github.com/radityobw/SIDIK) |
 | **SIDIK-paper** | Original deterministic research manuscripts & slides | `v1.0.0` | [`github.com/radityobw/SIDIK-paper`](https://github.com/radityobw/SIDIK-paper) |
-| **SIDIK-ML** | Explainable Non-ANN ML extension & `sidik.plugins` adapter | `v0.4.0` | [`github.com/radityobw/SIDIK-ML`](https://github.com/radityobw/SIDIK-ML) |
+| **SIDIK-ML** | Explainable Non-ANN ML extension & `sidik.plugins` adapter | `v0.5.0` | [`github.com/radityobw/SIDIK-ML`](https://github.com/radityobw/SIDIK-ML) |
 | **SIDIK-ML-paper** | ML research datasets, Non-ANN experiments, & manuscripts | `main` | [`github.com/radityobw/SIDIK-ML-paper`](https://github.com/radityobw/SIDIK-ML-paper) |
 
 ## 📄 License

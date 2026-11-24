@@ -89,8 +89,13 @@ class TestSidikPluginArchitecture(unittest.TestCase):
             csv_out = ReportFormatter.to_csv(report)
 
             self.assertIn("ML Triage:", console)
+            self.assertIn("[SIDIK-ML Hybrid Triage]", console)
             self.assertIn("**ML Triage:**", md)
+            self.assertIn("SIDIK-ML Hybrid Triage", md)
             self.assertIn("ML Probability:", html_out)
+            self.assertIn("SIDIK-ML Hybrid Security Dashboard", html_out)
+            self.assertIn("#7c3aed", html_out)
+            self.assertEqual(sarif_doc["runs"][0]["tool"]["driver"]["version"], "1.3.0")
             sarif_secret_results = [
                 r for r in sarif_doc["runs"][0]["results"]
                 if not r["ruleId"].startswith("SIDIK-SCA-")

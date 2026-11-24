@@ -103,9 +103,15 @@ def run_interactive_cli(
 ) -> int:
     """Runs the interactive SIDIK CLI Window / Terminal User Interface (TUI)."""
     _enable_windows_ansi()
-    app_label = banner_title or "SIDIK CLI"
+    ml_plugin = get_plugin("sidik-ml")
+    ml_ver = str(getattr(ml_plugin, "version", "0.5.0")) if ml_plugin is not None else "0.5.0"
+    is_ml_mode = bool((banner_title and "ml" in banner_title.lower()) or enable_ml_plugin)
+    app_label = "SIDIK-ML" if is_ml_mode else (banner_title or "SIDIK CLI")
     if sys.platform == "win32":
-        os.system(f"title {app_label} v{VERSION} - Interactive Static Security Console")
+        if is_ml_mode:
+            os.system(f"title SIDIK-ML v{ml_ver} (Core SIDIK v{VERSION}) - Explainable Non-ANN ML Console")
+        else:
+            os.system(f"title {app_label} v{VERSION} - Interactive Static Security Console")
 
     C_RESET = "\033[0m"
     C_BOLD = "\033[1m"
@@ -116,12 +122,12 @@ def run_interactive_cli(
     C_RED = "\033[91m"
     C_PURPLE = "\033[95m"
     C_WHITE = "\033[97m"
+    C_ACCENT = C_PURPLE if is_ml_mode else C_CYAN
 
     base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     lang = initial_lang
     enable_context = True
     enable_entropy = True
-    ml_plugin = get_plugin("sidik-ml")
     ml_enabled = bool(enable_ml_plugin and ml_plugin is not None)
     cur_ml_model = ml_model_path
     cur_ml_sha256 = ml_sha256
@@ -149,12 +155,17 @@ def run_interactive_cli(
             f"{len(last_report.findings)} temuan ({last_report.summary.scan_duration_seconds}s)"
             if last_report else ("Belum ada" if lang == "id" else "None")
         )
-        print(f"\n{C_CYAN}╔════════════════════════════════════════════════════════════════════════════════╗{C_RESET}")
-        print(f"{C_CYAN}║{C_RESET}  {C_BOLD}{C_WHITE}🛡️  {app_label} v{VERSION} - Secret Identification & Dependency Inspection Kit{C_RESET}")
-        print(f"{C_CYAN}║{C_RESET}  {C_DIM}Lightweight Offline Python SAST & SCA | Bundled OSV PyPI Advisory DB{C_RESET}        {C_CYAN}║{C_RESET}")
-        print(f"{C_CYAN}╠════════════════════════════════════════════════════════════════════════════════╣{C_RESET}")
-        print(f"{C_CYAN}║{C_RESET}  Bahasa: {C_BOLD}{lang.upper()}{C_RESET} | Konteks: {ctx_str} | Entropi: {ent_str} | ML Plugin: {ml_str} | Terakhir: {C_YELLOW}{last_str}{C_RESET}")
-        print(f"{C_CYAN}╚════════════════════════════════════════════════════════════════════════════════╝{C_RESET}")
+        print(f"\n{C_ACCENT}╔════════════════════════════════════════════════════════════════════════════════╗{C_RESET}")
+        if is_ml_mode:
+            model_disp = os.path.basename(cur_ml_model) if cur_ml_model else "Pass-Through"
+            print(f"{C_ACCENT}║{C_RESET}  {C_BOLD}{C_PURPLE}[SIDIK-ML v{ml_ver}]{C_RESET} {C_BOLD}{C_WHITE}Core SIDIK v{VERSION} - Explainable Non-ANN ML False Positive Reduction{C_RESET}")
+            print(f"{C_ACCENT}║{C_RESET}  {C_DIM}Hybrid Deterministic + Non-ANN Triage | Model: {model_disp} | Threshold: {cur_ml_threshold:.2f}{C_RESET}")
+        else:
+            print(f"{C_ACCENT}║{C_RESET}  {C_BOLD}{C_WHITE}🛡️  {app_label} v{VERSION} - Secret Identification & Dependency Inspection Kit{C_RESET}")
+            print(f"{C_ACCENT}║{C_RESET}  {C_DIM}Lightweight Offline Python SAST & SCA | Bundled OSV PyPI Advisory DB{C_RESET}        {C_ACCENT}║{C_RESET}")
+        print(f"{C_ACCENT}╠════════════════════════════════════════════════════════════════════════════════╣{C_RESET}")
+        print(f"{C_ACCENT}║{C_RESET}  Bahasa: {C_BOLD}{lang.upper()}{C_RESET} | Konteks: {ctx_str} | Entropi: {ent_str} | ML Plugin: {ml_str} | Terakhir: {C_YELLOW}{last_str}{C_RESET}")
+        print(f"{C_ACCENT}╚════════════════════════════════════════════════════════════════════════════════╝{C_RESET}")
         if lang == "id":
             print(f"  {C_BOLD}[1]{C_RESET} 🔍 Pindai Folder / Berkas Kustom (Input Path)")
             print(f"  {C_BOLD}[2]{C_RESET} 📁 Preset: Uji Secrets Terkontrol (N=100 berkas | dataset/secrets/test)")
@@ -276,11 +287,14 @@ def run_interactive_cli(
 
     print_banner()
 
+    prompt_tag = "sidik-ml>" if is_ml_mode else "sidik>"
+    close_brand = "SIDIK-ML" if is_ml_mode else "SIDIK"
+
     while True:
         try:
-            cmd_raw = input(f"\n{C_BOLD}{C_CYAN}sidik>{C_RESET} ").strip()
+            cmd_raw = input(f"\n{C_BOLD}{C_ACCENT}{prompt_tag}{C_RESET} ").strip()
         except (EOFError, KeyboardInterrupt):
-            print(f"\n{C_CYAN}[*] Menutup konsol SIDIK. Sampai jumpa!{C_RESET}")
+            print(f"\n{C_ACCENT}[*] Menutup konsol {close_brand}. Sampai jumpa!{C_RESET}")
             return 0
 
         if not cmd_raw:
@@ -288,7 +302,7 @@ def run_interactive_cli(
 
         low = cmd_raw.lower()
         if low in ("0", "exit", "quit", "q"):
-            print(f"{C_CYAN}[*] Menutup konsol SIDIK. Sampai jumpa!{C_RESET}")
+            print(f"{C_ACCENT}[*] Menutup konsol {close_brand}. Sampai jumpa!{C_RESET}")
             return 0
         elif low in ("menu", "help", "?", "cls", "clear"):
             if low in ("cls", "clear"):

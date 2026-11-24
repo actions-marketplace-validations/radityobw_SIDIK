@@ -32,13 +32,21 @@ TRANSLATIONS: Dict[str, Dict[str, str]] = {
         "id": "SIDIK",
         "en": "SIDIK"
     },
+    "app_title_ml": {
+        "id": "SIDIK-ML",
+        "en": "SIDIK-ML"
+    },
     "app_subtitle": {
         "id": "- Secret Identification and Dependency Inspection Kit (Python)",
         "en": "- Secret Identification and Dependency Inspection Kit (Python)"
     },
+    "app_subtitle_ml": {
+        "id": "- Explainable Non-ANN ML False Positive Reduction (Python)",
+        "en": "- Explainable Non-ANN ML False Positive Reduction (Python)"
+    },
     "app_version": {
-        "id": "v1.2 (Research Edition)",
-        "en": "v1.2 (Research Edition)"
+        "id": "v1.3.0 (Deterministic Edition)",
+        "en": "v1.3.0 (Deterministic Edition)"
     },
     "lang_toggle_btn": {
         "id": "English (EN)",
@@ -119,6 +127,10 @@ TRANSLATIONS: Dict[str, Dict[str, str]] = {
     "btn_scan": {
         "id": "▶  Mulai Pemindaian",
         "en": "▶  Start Security Scan"
+    },
+    "btn_scan_ml": {
+        "id": "▶  Mulai Pemindaian Hybrid ML",
+        "en": "▶  Start Hybrid ML Scan"
     },
     "btn_scanning": {
         "id": "⏳ Memindai...",
@@ -554,6 +566,22 @@ TRANSLATIONS: Dict[str, Dict[str, str]] = {
             "Visual Branding & Licensing:\n"
             "  • Logo & Assets: Located under logo/ (nobg transparent, glow rim dark theme, multi-res .ico, and 3264px hi-res).\n"
             "  • License: Open Source under MIT License for Academic Research & Industrial Security."
+        )
+    },
+    "about_ml_features_text": {
+        "id": (
+            "SIDIK-ML (Explainable Non-ANN Machine Learning Edition):\n"
+            "  1. Arsitektur Hybrid 2-Tahap: Core SIDIK secara deterministik mengekstrak kandidat secret terstruktur, lalu pengklasifikasi Non-ANN memberikan keputusan triage (KEEP_ALERT / SUPPRESS_FP).\n"
+            "  2. Murni Non-Neural (Non-ANN): Berbasis 19 fitur scan-time yang dapat dijelaskan (leksikal, karakteristik string, dan entropi) dengan jaminan zero data leakage.\n"
+            "  3. Verifikasi Integritas Ketat: Mendukung artefak model .skops dengan validasi SHA-256 dan mode fallback pass-through deterministik yang aman.\n"
+            "  4. Pemisahan Ekstensi Bersih: Dikemas terpisah sebagai paket sidik-ml dan terhubung ke Core SIDIK melalui plugin entry point resmi."
+        ),
+        "en": (
+            "SIDIK-ML (Explainable Non-ANN Machine Learning Edition):\n"
+            "  1. Two-Stage Hybrid Architecture: Core SIDIK deterministically extracts structured secret candidates, and the Non-ANN classifier assigns explainable triage verdicts (KEEP_ALERT / SUPPRESS_FP).\n"
+            "  2. Strictly Non-Neural (Non-ANN): Engineered around 19 explainable scan-time lexical, string, and entropy features with strict anti-leakage guarantees.\n"
+            "  3. Strict Model Integrity: Supports verified .skops model artifacts with SHA-256 checksum validation and safe deterministic pass-through fallback.\n"
+            "  4. Clean Extension Packaging: Packaged independently as sidik-ml and integrated with Core SIDIK through official plugin entry points."
         )
     },
 
