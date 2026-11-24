@@ -49,7 +49,8 @@ class TestSidikPluginArchitecture(unittest.TestCase):
             for fn in files:
                 if fn.endswith(".py"):
                     full_path = os.path.join(root, fn)
-                    content = open(full_path, "r", encoding="utf-8").read()
+                    with open(full_path, "r", encoding="utf-8") as fh:
+                        content = fh.read()
                     self.assertNotIn("sidik_ml", content, f"Forbidden coupling to sidik_ml in {full_path}")
 
     def test_post_scan_plugin_protocol_and_unified_scan(self):
@@ -90,8 +91,19 @@ class TestSidikPluginArchitecture(unittest.TestCase):
             self.assertIn("ML Triage:", console)
             self.assertIn("**ML Triage:**", md)
             self.assertIn("ML Probability:", html_out)
-            self.assertIn("properties", sarif_doc["runs"][0]["results"][0])
-            self.assertIn("ml_triage", json_doc["findings"][0]["metadata"])
+            sarif_secret_results = [
+                r for r in sarif_doc["runs"][0]["results"]
+                if not r["ruleId"].startswith("SIDIK-SCA-")
+            ]
+            self.assertEqual(len(sarif_secret_results), 1)
+            self.assertIn("properties", sarif_secret_results[0])
+            self.assertIn("ml_triage", sarif_secret_results[0]["properties"])
+            json_secret_findings = [
+                f for f in json_doc["findings"]
+                if f["finding_type"] == "secret"
+            ]
+            self.assertEqual(len(json_secret_findings), 1)
+            self.assertIn("ml_triage", json_secret_findings[0]["metadata"])
             self.assertIn("ml_triage", csv_out)
 
     def test_apply_post_scan_plugins_noop_without_plugins(self):
