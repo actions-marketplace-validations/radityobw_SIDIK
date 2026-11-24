@@ -382,7 +382,7 @@ class ReportFormatter:
         else:
             C_RESET = C_BOLD = C_DIM = C_RED = C_YELLOW = C_BLUE = C_GREEN = C_CYAN = C_PURPLE = C_WHITE = ""
 
-        C_BORDER = C_PURPLE if is_ml else C_CYAN
+        C_BORDER = C_YELLOW if is_ml else C_CYAN
 
         # Localized strings
         t_target = "Target:         " if not is_id else "Target:         "
@@ -408,7 +408,7 @@ class ReportFormatter:
 
         border_w = 82
         header_title_line = (
-            f"{C_BOLD}{C_PURPLE} [SIDIK-ML Hybrid Triage]{C_RESET} {C_BOLD}{C_WHITE}SIDIK: Secret Identification and Dependency Inspection Kit (Core v{SIDIK_VERSION}){C_RESET}"
+            f"{C_BOLD}{C_YELLOW} [SIDIK-ML Hybrid Triage]{C_RESET} {C_BOLD}{C_WHITE}SIDIK: Secret Identification and Dependency Inspection Kit (Core v{SIDIK_VERSION}){C_RESET}"
             if is_ml
             else f"{C_BOLD}{C_WHITE} SIDIK: Secret Identification and Dependency Inspection Kit (v{SIDIK_VERSION}){C_RESET}"
         )
@@ -491,12 +491,12 @@ class ReportFormatter:
         is_ml = _detect_ml_edition(report)
 
         if is_ml:
-            theme_primary = "#7c3aed"
-            theme_glow = "#a78bfa"
-            theme_accent = "#c4b5fd"
-            theme_header_bg = "linear-gradient(180deg, #1e1538 0%, var(--card-bg) 100%)"
-            theme_logo_shadow = "rgba(167, 139, 250, 0.55)"
-            theme_badge_grad = "linear-gradient(135deg, #6d28d9 0%, #a78bfa 100%)"
+            theme_primary = "#ea580c"
+            theme_glow = "#f59e0b"
+            theme_accent = "#fbbf24"
+            theme_header_bg = "linear-gradient(180deg, #271a0c 0%, var(--card-bg) 100%)"
+            theme_logo_shadow = "rgba(245, 158, 11, 0.55)"
+            theme_badge_grad = "linear-gradient(135deg, #ea580c 0%, #fbbf24 100%)"
             edition_pill = "<span class=\"edition-badge\">NON-ANN ML TRIAGE</span>"
             edition_label = f"SIDIK-ML Hybrid (Core v{html.escape(SIDIK_VERSION)})"
         else:
@@ -775,8 +775,8 @@ class ReportFormatter:
             font-weight: 700;
             letter-spacing: 0.4px;
             vertical-align: middle;
-            background: #6d28d9;
-            color: #f5f3ff;
+            background: #f59e0b;
+            color: #0a0d12;
         }}
         .edition-badge.edition-core {{
             background: #0369a1;

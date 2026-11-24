@@ -838,14 +838,14 @@ class SecurityAnalyzerGUI:
                 f"SIDIK-ML v{ml_v} (Core SIDIK v{SIDIK_VERSION}) - Explainable Non-ANN ML False Positive Reduction"
             )
             self._accent = {
-                "primary": "#8b5cf6",
-                "dim": "#6d28d9",
-                "bright": "#c4b5fd",
-                "hover": "#7c3aed",
-                "card_hover": "#231a3a",
-                "header_bg": "#151226",
-                "header_border": "#4c1d95",
-                "ml_row_border": "#5b21b6",
+                "primary": "#f59e0b",
+                "dim": "#c2410c",
+                "bright": "#fbbf24",
+                "hover": "#ea580c",
+                "card_hover": "#2c1f10",
+                "header_bg": "#1a140c",
+                "header_border": "#92400e",
+                "ml_row_border": "#b45309",
             }
         else:
             brand_prefix = app_brand or "SIDIK"
@@ -1042,7 +1042,7 @@ class SecurityAnalyzerGUI:
         self.title_lbl.pack(side="left")
         if self.is_ml_edition:
             self.ml_edition_pill = tk.Label(
-                title_top, text="NON-ANN ML", bg=self._accent["dim"], fg="#ffffff",
+                title_top, text="NON-ANN ML", bg=self._accent["primary"], fg="#0a0d12",
                 font=("Segoe UI", 7, "bold"), padx=7, pady=1
             )
             self.ml_edition_pill.pack(side="left", padx=(8, 0), pady=(2, 0))
@@ -1057,7 +1057,7 @@ class SecurityAnalyzerGUI:
 
         if self.is_ml_edition:
             ver_text = f"SIDIK-ML v{self._ml_version or '0.5.0'}  |  Core v{self._sidik_version}"
-            ver_fg = "#d8b4fe"
+            ver_fg = "#fcd34d"
         else:
             ver_text = f"v{self._sidik_version}  Deterministic Edition"
             ver_fg = COLORS["success"]
@@ -1289,7 +1289,7 @@ class SecurityAnalyzerGUI:
 
             if self.is_ml_edition:
                 self.ml_row_pill = tk.Label(
-                    ml_row, text="ML TRIAGE", bg=self._accent["dim"], fg="#ffffff",
+                    ml_row, text="ML TRIAGE", bg=self._accent["primary"], fg="#0a0d12",
                     font=("Segoe UI", 7, "bold"), padx=6, pady=1
                 )
                 self.ml_row_pill.pack(side="left", padx=(0, 8))
@@ -2251,7 +2251,7 @@ class SecurityAnalyzerGUI:
             ml_div.pack(fill="x", pady=(14, 12))
             self.lbl_about_ml_desc = tk.Label(
                 scroll_frame, text=t("about_ml_features_text"),
-                bg=self.colors["card_bg"], fg="#e9d5ff",
+                bg=self.colors["card_bg"], fg="#fde68a",
                 font=("Segoe UI", 9), justify="left"
             )
             self.lbl_about_ml_desc.pack(anchor="w")

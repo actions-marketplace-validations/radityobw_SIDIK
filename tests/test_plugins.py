@@ -94,7 +94,9 @@ class TestSidikPluginArchitecture(unittest.TestCase):
             self.assertIn("SIDIK-ML Hybrid Triage", md)
             self.assertIn("ML Probability:", html_out)
             self.assertIn("SIDIK-ML Hybrid Security Dashboard", html_out)
-            self.assertIn("#7c3aed", html_out)
+            self.assertIn("#ea580c", html_out)
+            self.assertIn("#f59e0b", html_out)
+            self.assertNotIn("Research Edition", html_out)
             self.assertEqual(sarif_doc["runs"][0]["tool"]["driver"]["version"], "1.3.0")
             sarif_secret_results = [
                 r for r in sarif_doc["runs"][0]["results"]

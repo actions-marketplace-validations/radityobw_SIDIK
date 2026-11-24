@@ -122,7 +122,7 @@ def run_interactive_cli(
     C_RED = "\033[91m"
     C_PURPLE = "\033[95m"
     C_WHITE = "\033[97m"
-    C_ACCENT = C_PURPLE if is_ml_mode else C_CYAN
+    C_ACCENT = C_YELLOW if is_ml_mode else C_CYAN
 
     base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     lang = initial_lang
@@ -158,7 +158,7 @@ def run_interactive_cli(
         print(f"\n{C_ACCENT}╔════════════════════════════════════════════════════════════════════════════════╗{C_RESET}")
         if is_ml_mode:
             model_disp = os.path.basename(cur_ml_model) if cur_ml_model else "Pass-Through"
-            print(f"{C_ACCENT}║{C_RESET}  {C_BOLD}{C_PURPLE}[SIDIK-ML v{ml_ver}]{C_RESET} {C_BOLD}{C_WHITE}Core SIDIK v{VERSION} - Explainable Non-ANN ML False Positive Reduction{C_RESET}")
+            print(f"{C_ACCENT}║{C_RESET}  {C_BOLD}{C_YELLOW}[SIDIK-ML v{ml_ver}]{C_RESET} {C_BOLD}{C_WHITE}Core SIDIK v{VERSION} - Explainable Non-ANN ML False Positive Reduction{C_RESET}")
             print(f"{C_ACCENT}║{C_RESET}  {C_DIM}Hybrid Deterministic + Non-ANN Triage | Model: {model_disp} | Threshold: {cur_ml_threshold:.2f}{C_RESET}")
         else:
             print(f"{C_ACCENT}║{C_RESET}  {C_BOLD}{C_WHITE}🛡️  {app_label} v{VERSION} - Secret Identification & Dependency Inspection Kit{C_RESET}")
@@ -227,7 +227,7 @@ def run_interactive_cli(
         last_report = report
         print(ReportFormatter.to_console_summary(report, lang=lang, use_color=True))
         if report.findings:
-            print(f" {C_PURPLE}💡 Tip:{C_RESET} Ketik {C_BOLD}7{C_RESET}, {C_BOLD}copy code{C_RESET}, {C_BOLD}copy rem{C_RESET}, atau {C_BOLD}export hasil.html{C_RESET} untuk menyalin/mengekspor seluruh temuan.")
+            print(f" {C_ACCENT}💡 Tip:{C_RESET} Ketik {C_BOLD}7{C_RESET}, {C_BOLD}copy code{C_RESET}, {C_BOLD}copy rem{C_RESET}, atau {C_BOLD}export hasil.html{C_RESET} untuk menyalin/mengekspor seluruh temuan.")
 
     def copy_all_items(mode: str):
         if not last_report or not last_report.findings:

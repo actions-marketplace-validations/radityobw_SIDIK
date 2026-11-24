@@ -5,10 +5,10 @@ Seluruh perubahan penting pada paket `sidik-security` didokumentasikan pada berk
 ## [1.3.0] - 2026-11-24
 
 ### Diubah & Ditambahkan
-- Pemisahan identitas visual tegas antara **SIDIK (*Deterministic Edition*, tema *Ocean Blue* `#3b82f6`)** dan **SIDIK-ML (*Explainable Non-ANN ML Edition*, tema *Electric Violet* `#8b5cf6`)** lintas *Desktop GUI*, *Interactive CLI* (TUI), serta pelaporan konsol, Markdown, dan dasbor HTML.
+- Pemisahan identitas visual tegas antara **SIDIK (*Deterministic Edition*, tema *Ocean Blue* `#3b82f6`)** dan **SIDIK-ML (*Explainable Non-ANN ML Edition*, tema *Amber Orange* `#f59e0b` / `#ea580c`)** lintas *Desktop GUI*, *Interactive CLI* (TUI), serta pelaporan konsol, Markdown, dan dasbor HTML.
 - *Desktop GUI* (`sidik/gui.py`): Penambahan bilah aksen 3px, *pill badge* `NON-ANN ML`, lencana versi dinamis (`v1.3.0 Deterministic Edition` vs `SIDIK-ML v0.5.0 | Core v1.3.0`), sorotan panel kontrol `ML TRIAGE`, label tombol khusus `Mulai Pemindaian Hybrid ML` / `Start Hybrid ML Scan`, serta ringkasan arsitektur *Non-ANN* di tab *About* saat diluncurkan oleh `sidik-ml gui` atau dengan mode ML aktif.
-- *Interactive CLI* (`sidik/cli.py`): *Banner* ungu ANSI dan *prompt* interaktif `sidik-ml>` dengan indikator model `.skops` & ambang probabilitas aktif saat berjalan dalam mode ML (`sidik-ml interactive` / `--enable-ml`), berbanding terbalik dengan konsol biru/cyan `sidik>` pada mode deterministik.
-- Pelaporan & SARIF (`sidik/reporting/formatter.py`): Menghilangkan *hardcoded* `1.0.0` pada keluaran `to_sarif()` (`driver.version`) dan subjudul `to_html()` agar mengikuti `sidik.__version__` (`1.3.0`), serta otomatis menerapkan aksen ungu, tajuk `SIDIK-ML Hybrid`, dan lencana `NON-ANN ML TRIAGE` apabila laporan memuat metadata `ml_triage`.
+- *Interactive CLI* (`sidik/cli.py`): *Banner* kuning-oranye ANSI dan *prompt* interaktif `sidik-ml>` dengan indikator model `.skops` & ambang probabilitas aktif saat berjalan dalam mode ML (`sidik-ml interactive` / `--enable-ml`), berbanding terbalik dengan konsol biru/cyan `sidik>` pada mode deterministik.
+- Pelaporan & SARIF (`sidik/reporting/formatter.py`): Menghilangkan *hardcoded* `1.0.0` pada keluaran `to_sarif()` (`driver.version`) dan subjudul `to_html()` agar mengikuti `sidik.__version__` (`1.3.0`), serta otomatis menerapkan aksen kuning-oranye, tajuk `SIDIK-ML Hybrid`, dan lencana `NON-ANN ML TRIAGE` apabila laporan memuat metadata `ml_triage`.
 - Lokalisasi (`sidik/i18n.py`): Menambahkan kunci dwibahasa `app_title_ml`, `app_subtitle_ml`, `btn_scan_ml`, dan `about_ml_features_text` serta memperbarui `app_version` ke `v1.3.0 (Deterministic Edition)`.
 
 ## [1.2.0] - 2026-11-24
