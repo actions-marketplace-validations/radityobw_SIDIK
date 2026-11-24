@@ -225,6 +225,14 @@ python experiments/run_external_benchmarks.py
 python experiments/generate_charts.py
 ```
 
+### 6. Distribusi *Container* (`ghcr.io`) & Paket Rilis
+```bash
+# Jalankan lewat GitHub Container Registry (tanpa instalasi Python lokal)
+docker run --rm -v "${PWD}:/workspace" ghcr.io/radityobw/sidik:latest --target /workspace --format console
+
+# Atau pasang langsung dari aset .whl / .tar.gz pada tab GitHub Releases v1.3.1
+```
+
 ---
 
 ## 🗺️ Ekosistem Perangkat Lunak Publik (*Public Software Ecosystem*)
@@ -299,6 +307,9 @@ sidik --target . --enable-ml --ml-model path/to/model.skops
 
 # 5. Run full regression suite (63 tests)
 python -m unittest discover tests -v
+
+# 6. Run via GitHub Container Registry (ghcr.io) or install .whl from GitHub Releases
+docker run --rm -v "${PWD}:/workspace" ghcr.io/radityobw/sidik:latest --target /workspace --format console
 ```
 
 > **Windows PowerShell Note:** Inside `.venv\Scripts` without prior `.\Activate.ps1`, prefix commands with `.\` (e.g., `.\sidik -i`, `.\sidik --gui`, `.\sidik-ml -i`) or invoke via `python -m sidik ...` / `python -m sidik_ml ...`.
