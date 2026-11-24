@@ -2,6 +2,12 @@
 
 Seluruh perubahan penting pada paket `sidik-security` didokumentasikan pada berkas ini.
 
+## [1.3.2] - 2026-11-24
+
+### Diubah & Ditambahkan
+- Mempersingkat `description` pada [`action.yml`](action.yml) (`116` karakter `< 125` batas *GitHub Marketplace*) agar dapat dipublikasikan langsung melalui halaman *Release Action*.
+- Menambahkan [`Dockerfile`](Dockerfile), [`.dockerignore`](.dockerignore), serta *workflow* [`.github/workflows/release.yml`](.github/workflows/release.yml) untuk otomasi unggah aset `.whl`/`.tar.gz`/`SHA256SUMS.txt` ke *GitHub Releases*, *container image* `ghcr.io/radityobw/sidik`, serta *PyPI Trusted Publishing* OIDC (*gated*).
+
 ## [1.3.1] - 2026-11-24
 
 ### Diubah & Diperbaiki

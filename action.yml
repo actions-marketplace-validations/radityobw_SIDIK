@@ -1,5 +1,5 @@
 name: "SIDIK Security Scanner (Offline SAST & SCA)"
-description: "Zero-network-call Python Secret Detection (3-layer lexical context filter) & 5-manifest Offline SCA (29,208 OSV PyPI advisories)."
+description: "Offline Python SAST & SCA: 3-layer secret detection and 5-manifest OSV PyPI vulnerability scanner with SARIF output."
 author: "SIDIK Research Team - Universitas Sultan Ageng Tirtayasa"
 
 branding:
