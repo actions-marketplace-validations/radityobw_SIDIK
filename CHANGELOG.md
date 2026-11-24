@@ -2,6 +2,13 @@
 
 Seluruh perubahan penting pada paket `sidik` (sebelumnya `sidik-security`) didokumentasikan pada berkas ini.
 
+## [1.3.6] - 2026-11-25
+
+### Ditingkatkan (Cakupan CVE OSV PyPI & Akurasi *Severity*)
+- **Dukungan `affected[].versions` Eksplisit ([`osv_import.py`](sidik/dependency_analyzer/osv_import.py), [`matcher.py`](sidik/dependency_analyzer/matcher.py), [`analyzer.py`](sidik/dependency_analyzer/analyzer.py)):** Mengurai daftar versi eksplisit (`vulnerable_versions`) pada rekaman OSV yang tidak menyertakan blok `ECOSYSTEM` *range*, memangkas rekaman terlewati (`skipped_record_count`) dari `6.268` menjadi `679`.
+- **Skoring *CVSS v4.0*, *CVSS v2.0*, & Klasifikasi *Malicious Package* (`MAL-*`):** Menambahkan `cvss4_severity()`, `cvss2_base_score()`, pembacaan *severity* tingkat `affected[]`, serta penetapan `CRITICAL` otomatis untuk advisori paket berbahaya `MAL-*`, menurunkan *fallback* `default: MEDIUM` dari `12.191` menjadi `5.224`.
+- **Pembaruan *Snapshot* OSV PyPI Luring (`pypi_advisories.json`):** Diperbarui ke *snapshot* `2026-11-24T17:47:00Z` dengan total **`35.304` advisori** (`35.292` OSV + `12` bawaan; **`6.841` CVE unik**) lintas **`13.734` paket PyPI** (`+70,9%` cakupan paket vs `8.038` sebelumnya).
+
 ## [1.3.5] - 2026-11-25
 
 ### Diperbaiki

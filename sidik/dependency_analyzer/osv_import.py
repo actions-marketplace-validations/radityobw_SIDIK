@@ -18,6 +18,7 @@ import zipfile
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 from packaging.specifiers import InvalidSpecifier, SpecifierSet
+from packaging.version import InvalidVersion, Version
 
 from sidik.dependency_analyzer.database import get_user_db_path
 from sidik.dependency_analyzer.parsers import normalize_package_name
@@ -99,18 +100,110 @@ def score_to_severity(score: float) -> str:
     return "INFO"
 
 
+_CVSS2_AV = {"L": 0.395, "A": 0.646, "N": 1.0}
+_CVSS2_AC = {"H": 0.35, "M": 0.61, "L": 0.71}
+_CVSS2_AU = {"M": 0.45, "S": 0.56, "N": 0.704}
+_CVSS2_CIA = {"N": 0.0, "P": 0.275, "C": 0.660}
+
+
+def cvss2_base_score(vector: str) -> Optional[float]:
+    """Computes a CVSS v2.0 base score from an OSV vector string, or None when unparseable."""
+    raw = vector.strip()
+    if raw.startswith("CVSS:2.0/"):
+        raw = raw[len("CVSS:2.0/"):]
+    metrics: Dict[str, str] = {}
+    for part in raw.split("/"):
+        if ":" in part:
+            k, v = part.split(":", 1)
+            metrics[k] = v
+    try:
+        av = _CVSS2_AV[metrics["AV"]]
+        ac = _CVSS2_AC[metrics["AC"]]
+        au = _CVSS2_AU[metrics["Au"]]
+        c = _CVSS2_CIA[metrics["C"]]
+        i = _CVSS2_CIA[metrics["I"]]
+        a = _CVSS2_CIA[metrics["A"]]
+    except KeyError:
+        return None
+    impact = 10.41 * (1.0 - (1.0 - c) * (1.0 - i) * (1.0 - a))
+    exploitability = 20.0 * av * ac * au
+    f_impact = 0.0 if impact == 0.0 else 1.176
+    score = ((0.6 * impact) + (0.4 * exploitability) - 1.5) * f_impact
+    return max(0.0, min(10.0, round(score, 1)))
+
+
+def cvss4_severity(vector: str) -> Optional[str]:
+    """Maps a CVSS v4.0 base vector string to CRITICAL/HIGH/MEDIUM/LOW, or None if invalid."""
+    parts = vector.strip().split("/")
+    if not parts or parts[0] != "CVSS:4.0":
+        return None
+    metrics: Dict[str, str] = {}
+    for part in parts[1:]:
+        if ":" in part:
+            k, v = part.split(":", 1)
+            metrics[k] = v
+    if not any(k in metrics for k in ("VC", "VI", "VA", "SC", "SI", "SA")):
+        return None
+    vc = metrics.get("VC", "N")
+    vi = metrics.get("VI", "N")
+    va = metrics.get("VA", "N")
+    sc = metrics.get("SC", "N")
+    si = metrics.get("SI", "N")
+    sa = metrics.get("SA", "N")
+    impacts = (vc, vi, va, sc, si, sa)
+    if (vc == "H" and vi == "H" and va == "H") or (
+        metrics.get("AV") == "N"
+        and metrics.get("PR") == "N"
+        and metrics.get("UI") == "N"
+        and ("H" in (vc, vi) or (sc == "H" and si == "H"))
+    ):
+        return "CRITICAL"
+    if "H" in impacts:
+        return "HIGH"
+    if "L" in impacts:
+        return "MEDIUM"
+    return "LOW"
+
+
 def extract_severity(record: Dict[str, Any]) -> Tuple[str, str]:
-    """Returns (severity, source) where source is 'database_specific', 'cvss_v3' or 'default'."""
+    """Returns (severity, source) across database_specific, CVSS v3/v4/v2, MAL-*, or default."""
     db_specific = record.get("database_specific")
     if isinstance(db_specific, dict):
         label = str(db_specific.get("severity", "")).upper()
         if label in SEVERITY_ALIASES:
             return SEVERITY_ALIASES[label], "database_specific"
+
+    for affected in record.get("affected", []) or []:
+        if not isinstance(affected, dict):
+            continue
+        for sub_key in ("database_specific", "ecosystem_specific"):
+            sub = affected.get(sub_key)
+            if isinstance(sub, dict):
+                label = str(sub.get("severity", "")).upper()
+                if label in SEVERITY_ALIASES:
+                    return SEVERITY_ALIASES[label], "database_specific"
+
     for entry in record.get("severity", []) or []:
-        if isinstance(entry, dict) and str(entry.get("type", "")).startswith("CVSS_V3"):
-            score = cvss3_base_score(str(entry.get("score", "")))
+        if not isinstance(entry, dict):
+            continue
+        sev_type = str(entry.get("type", "")).upper()
+        vec = str(entry.get("score", ""))
+        if sev_type.startswith("CVSS_V3"):
+            score = cvss3_base_score(vec)
             if score is not None:
                 return score_to_severity(score), "cvss_v3"
+        elif sev_type.startswith("CVSS_V4"):
+            sev = cvss4_severity(vec)
+            if sev is not None:
+                return sev, "cvss_v4"
+        elif sev_type.startswith("CVSS_V2"):
+            score = cvss2_base_score(vec)
+            if score is not None:
+                return ("HIGH" if score >= 7.0 else score_to_severity(score)), "cvss_v2"
+
+    if str(record.get("id", "")).startswith("MAL-"):
+        return "CRITICAL", "malicious_package"
+
     return DEFAULT_SEVERITY, "default"
 
 
@@ -189,10 +282,12 @@ def convert_osv_record(record: Dict[str, Any]) -> Tuple[List[Dict[str, Any]], st
         name = normalize_package_name(str(package.get("name", "")))
         if not name:
             continue
+        range_hits = 0
         for rng in affected.get("ranges", []) or []:
             if str(rng.get("type", "")).upper() != "ECOSYSTEM":
                 continue
             for specifier, fixed in events_to_specifiers(rng.get("events", []) or []):
+                range_hits += 1
                 key = (name, specifier)
                 if key in seen:
                     continue
@@ -207,6 +302,56 @@ def convert_osv_record(record: Dict[str, Any]) -> Tuple[List[Dict[str, Any]], st
                     "summary": summary,
                     "details": details,
                 })
+
+        if range_hits == 0:
+            raw_versions = affected.get("versions") or []
+            parsed_vers: List[Tuple[Version, str]] = []
+            seen_ver_strs: set[str] = set()
+            for rv in raw_versions:
+                v_str = str(rv).strip()
+                if not v_str or v_str in seen_ver_strs:
+                    continue
+                try:
+                    v_obj = Version(v_str)
+                except InvalidVersion:
+                    continue
+                seen_ver_strs.add(v_str)
+                parsed_vers.append((v_obj, v_str))
+
+            if parsed_vers:
+                parsed_vers.sort(key=lambda item: item[0])
+                valid_versions = [v_str for _, v_str in parsed_vers]
+                if len(valid_versions) == 1:
+                    spec_str = f"=={valid_versions[0]}"
+                    key = (name, spec_str)
+                    if key not in seen:
+                        seen.add(key)
+                        advisories.append({
+                            "id": record_id,
+                            "cve": cve,
+                            "package": name,
+                            "vulnerable_specifier": spec_str,
+                            "fixed_version": None,
+                            "severity": severity,
+                            "summary": summary,
+                            "details": details,
+                        })
+                else:
+                    spec_str = f"explicit({len(valid_versions)} versions)"
+                    key = (name, spec_str)
+                    if key not in seen:
+                        seen.add(key)
+                        advisories.append({
+                            "id": record_id,
+                            "cve": cve,
+                            "package": name,
+                            "vulnerable_specifier": spec_str,
+                            "vulnerable_versions": valid_versions,
+                            "fixed_version": None,
+                            "severity": severity,
+                            "summary": summary,
+                            "details": details,
+                        })
     return advisories, severity_source
 
 
@@ -215,14 +360,21 @@ def build_database(records: Iterable[Dict[str, Any]], source: str, source_sha256
     advisories: List[Dict[str, Any]] = []
     record_count = 0
     skipped = 0
-    severity_sources: Dict[str, int] = {"database_specific": 0, "cvss_v3": 0, "default": 0}
+    severity_sources: Dict[str, int] = {
+        "database_specific": 0,
+        "cvss_v3": 0,
+        "cvss_v4": 0,
+        "cvss_v2": 0,
+        "malicious_package": 0,
+        "default": 0,
+    }
     for record in records:
         record_count += 1
         converted, sev_source = convert_osv_record(record)
         if not converted:
             skipped += 1
             continue
-        severity_sources[sev_source] += len(converted)
+        severity_sources[sev_source] = severity_sources.get(sev_source, 0) + len(converted)
         advisories.extend(converted)
 
     advisories.sort(key=lambda a: (a["package"], a["id"], a["vulnerable_specifier"]))

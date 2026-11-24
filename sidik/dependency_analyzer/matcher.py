@@ -1,7 +1,7 @@
 """Semantic version evaluation and CVE advisory matching using packaging specifiers."""
 
 import re
-from typing import Tuple, Optional
+from typing import Optional, Sequence, Tuple
 from packaging.version import Version, InvalidVersion
 from packaging.specifiers import SpecifierSet, InvalidSpecifier
 
@@ -54,13 +54,47 @@ def extract_concrete_version(specifier_str: str) -> Optional[str]:
     return None
 
 
-def is_version_vulnerable(declared_spec: str, vulnerable_spec: str) -> Tuple[bool, str]:
-    """Evaluates whether the declared dependency version satisfies the vulnerable specifier constraint.
-    
+def is_version_vulnerable(
+    declared_spec: str,
+    vulnerable_spec: str,
+    vulnerable_versions: Optional[Sequence[str]] = None,
+) -> Tuple[bool, str]:
+    """Evaluates whether the declared dependency version satisfies the vulnerable constraint.
+
     Returns:
         (is_vulnerable: bool, matched_reason: str)
     """
     norm_declared = normalize_version_specifier(declared_spec)
+    if vulnerable_versions:
+        if not norm_declared:
+            return True, f"Unpinned dependency '*' matches {len(vulnerable_versions)} known vulnerable version(s)"
+        parsed_vuln_versions = []
+        for rv in vulnerable_versions:
+            try:
+                parsed_vuln_versions.append(Version(str(rv)))
+            except InvalidVersion:
+                continue
+        if not parsed_vuln_versions:
+            return False, "No valid explicit vulnerable versions"
+
+        concrete = extract_concrete_version(norm_declared)
+        if concrete:
+            try:
+                v = Version(concrete)
+                if v in set(parsed_vuln_versions):
+                    return True, f"Concrete version {concrete} matches explicit vulnerable version list"
+                return False, f"Version {concrete} is outside explicit vulnerable version list"
+            except InvalidVersion:
+                pass
+        try:
+            declared_spec_set = SpecifierSet(norm_declared)
+            for v_vuln in parsed_vuln_versions:
+                if v_vuln in declared_spec_set:
+                    return True, f"Declared range '{norm_declared}' includes explicit vulnerable version {v_vuln}"
+            return False, f"Declared range '{norm_declared}' avoids explicit vulnerable versions"
+        except InvalidSpecifier:
+            return False, f"Invalid declared specifier: {declared_spec}"
+
     if not norm_declared:
         # Wildcard or unpinned dependency: considered risky
         return True, f"Unpinned dependency '*' matches vulnerable envelope {vulnerable_spec}"

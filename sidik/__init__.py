@@ -23,7 +23,7 @@ from sidik.plugins import (
     apply_post_scan_plugins,
 )
 
-__version__ = "1.3.5"
+__version__ = "1.3.6"
 __tool_name__ = "SIDIK"
 __full_name__ = "Secret Identification and Dependency Inspection Kit"
 

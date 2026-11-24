@@ -29,7 +29,7 @@ class TestSidikV11Stabilization(unittest.TestCase):
     """Verifies packaging, determinism, non-intrusive tracemalloc, parser fixes, and ML contract."""
 
     def test_version_and_exports(self):
-        self.assertEqual(__version__, "1.3.5")
+        self.assertEqual(__version__, "1.3.6")
         self.assertEqual(CANDIDATE_SCHEMA_VERSION, "1.0.0")
         self.assertEqual(compute_stable_id("SEC-SEC001", "a.py", "1"), compute_stable_id("SEC-SEC001", "a.py", "1"))
 

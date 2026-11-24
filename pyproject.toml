@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "sidik"
-version = "1.3.5"
+version = "1.3.6"
 description = "SIDIK: Secret Identification and Dependency Inspection Kit (Lightweight Offline Python SAST & SCA)"
 readme = "README.md"
 requires-python = ">=3.9"

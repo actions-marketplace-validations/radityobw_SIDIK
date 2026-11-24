@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       release_tag:
-        description: "Optional existing release tag (e.g., v1.3.5) to attach wheel/tarball/SHA256SUMS and tag GHCR image"
+        description: "Optional existing release tag (e.g., v1.3.6) to attach wheel/tarball/SHA256SUMS and tag GHCR image"
         required: false
         default: ""
         type: string

@@ -84,7 +84,11 @@ class DependencyAnalyzer:
                 cve_id = adv.get("cve") or adv["id"]
                 if cve_id in reported:
                     continue
-                vuln, reason = is_version_vulnerable(spec.specifier, adv["vulnerable_specifier"])
+                vuln, reason = is_version_vulnerable(
+                    spec.specifier,
+                    adv["vulnerable_specifier"],
+                    vulnerable_versions=adv.get("vulnerable_versions"),
+                )
                 if vuln:
                     reported.add(cve_id)
                     finding_id = compute_stable_id(
