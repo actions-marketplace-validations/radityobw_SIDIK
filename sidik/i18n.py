@@ -37,8 +37,8 @@ TRANSLATIONS: Dict[str, Dict[str, str]] = {
         "en": "- Secret Identification and Dependency Inspection Kit (Python)"
     },
     "app_version": {
-        "id": "v1.1 (Research Edition)",
-        "en": "v1.1 (Research Edition)"
+        "id": "v1.2 (Research Edition)",
+        "en": "v1.2 (Research Edition)"
     },
     "lang_toggle_btn": {
         "id": "English (EN)",
@@ -87,6 +87,34 @@ TRANSLATIONS: Dict[str, Dict[str, str]] = {
     "opt_entropy": {
         "id": "Entropi Shannon",
         "en": "Shannon Entropy"
+    },
+    "opt_ml_triage": {
+        "id": "ML Triage (Non-ANN)",
+        "en": "ML Triage (Non-ANN)"
+    },
+    "opt_ml_suppress": {
+        "id": "Sembunyikan FP (Aman CRITICAL)",
+        "en": "Suppress FP (CRITICAL Safe)"
+    },
+    "btn_browse_model": {
+        "id": "Model .skops",
+        "en": "Model .skops"
+    },
+    "lbl_ml_model": {
+        "id": "Model ML:",
+        "en": "ML Model:"
+    },
+    "lbl_ml_threshold": {
+        "id": "Ambang:",
+        "en": "Threshold:"
+    },
+    "lbl_ml_triage_header": {
+        "id": "=== Analisis Triage SIDIK-ML (Explainable Non-ANN) ===",
+        "en": "=== SIDIK-ML Explainable Triage Analysis ==="
+    },
+    "ml_model_placeholder": {
+        "id": "(Opsional: pilih berkas .skops terverifikasi)",
+        "en": "(Optional: select verified .skops file)"
     },
     "btn_scan": {
         "id": "▶  Mulai Pemindaian",

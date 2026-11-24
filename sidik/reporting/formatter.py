@@ -25,6 +25,19 @@ if sys.platform == "win32":
         pass
 
 
+def _format_ml_triage_summary(ml_meta: Dict[str, Any]) -> str:
+    """Formats optional SIDIK-ML triage metadata cleanly for console and Markdown output."""
+    action = str(ml_meta.get("action", "KEEP_ALERT"))
+    prob = float(ml_meta.get("secret_probability", 0.0))
+    model_name = str(ml_meta.get("model_name", "N/A"))
+    summary = f"{action} (p={prob:.2f}, model={model_name})"
+    top_feats = ml_meta.get("top_feature_contributions")
+    if isinstance(top_feats, dict) and top_feats:
+        items = ", ".join(f"{k}={float(v):.3f}" if isinstance(v, (int, float)) else f"{k}={v}" for k, v in list(top_feats.items())[:3])
+        summary += f" | Top features: {items}"
+    return summary
+
+
 class ReportFormatter:
     """Renders ScanReport into various output formats: JSON, Markdown, CSV, and Modern Console."""
 
@@ -77,6 +90,7 @@ class ReportFormatter:
     @staticmethod
     def to_markdown(report: ScanReport, lang: str = "en") -> str:
         """Formats report as detailed Markdown document in English or Indonesian."""
+        from sidik import __version__ as SIDIK_VERSION
         from sidik.i18n import get_secret_remediation, get_dependency_remediation
         s = report.summary
         is_id = (lang.lower() == "id")
@@ -150,6 +164,9 @@ class ReportFormatter:
             if f.snippet:
                 md.append(f"- **{lbl_code}:** `{f.snippet}`")
             md.append(f"- **{lbl_desc}:** {f.description}")
+            ml_meta = (f.metadata or {}).get("ml_triage") if f.metadata else None
+            if isinstance(ml_meta, dict):
+                md.append(f"- **ML Triage:** {_format_ml_triage_summary(ml_meta)}")
 
             # Localize remediation if possible
             remediation_text = f.remediation
@@ -228,7 +245,7 @@ class ReportFormatter:
             if f.remediation:
                 msg_text += f" | Fix: {f.remediation}"
 
-            results_list.append({
+            sarif_result: Dict[str, Any] = {
                 "ruleId": rule_id,
                 "level": sarif_level,
                 "message": {"text": msg_text},
@@ -246,7 +263,11 @@ class ReportFormatter:
                         }
                     }
                 ]
-            })
+            }
+            ml_meta = (f.metadata or {}).get("ml_triage") if f.metadata else None
+            if isinstance(ml_meta, dict):
+                sarif_result["properties"] = {"ml_triage": ml_meta}
+            results_list.append(sarif_result)
 
         sarif_doc = {
             "$schema": "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json",
@@ -271,6 +292,7 @@ class ReportFormatter:
     @staticmethod
     def to_github_annotations(report: ScanReport, lang: str = "id") -> str:
         """Formats findings as GitHub Actions workflow commands (::error / ::warning) for inline PR annotations."""
+        from sidik import __version__ as SIDIK_VERSION
         from sidik.i18n import get_secret_remediation, get_dependency_remediation
         base_dir = report.summary.target_path
         if os.path.isfile(base_dir):
@@ -314,6 +336,7 @@ class ReportFormatter:
     @staticmethod
     def to_console_summary(report: ScanReport, lang: str = "en", use_color: Optional[bool] = None) -> str:
         """Renders modern, information-dense CLI output with ANSI styling and actionable remediation blocks."""
+        from sidik import __version__ as SIDIK_VERSION
         from sidik.i18n import get_secret_remediation, get_dependency_remediation
         s = report.summary
         is_id = (lang.lower() == "id")
@@ -362,7 +385,7 @@ class ReportFormatter:
         border_w = 82
         lines = [
             f"{C_CYAN}{'=' * border_w}{C_RESET}",
-            f"{C_BOLD}{C_WHITE} SIDIK: Secret Identification and Dependency Inspection Kit (v1.0){C_RESET}",
+            f"{C_BOLD}{C_WHITE} SIDIK: Secret Identification and Dependency Inspection Kit (v{SIDIK_VERSION}){C_RESET}",
             f"{C_CYAN}{'=' * border_w}{C_RESET}",
             f" {C_DIM}{t_target}{C_RESET} {C_WHITE}{s.target_path}{C_RESET}",
             f" {C_DIM}{t_files}{C_RESET} {s.total_files_scanned:<8} {C_DIM}{t_dur}{C_RESET} {s.scan_duration_seconds} {t_sec_unit}",
@@ -405,6 +428,10 @@ class ReportFormatter:
                         clean_snip = clean_snip[:92] + "..."
                     lines.append(f"      {C_DIM}Code:{C_RESET} `{clean_snip}`")
 
+                ml_meta = (f.metadata or {}).get("ml_triage") if f.metadata else None
+                if isinstance(ml_meta, dict):
+                    lines.append(f"      {C_DIM}ML Triage:{C_RESET} {_format_ml_triage_summary(ml_meta)}")
+
                 rem_text = f.remediation
                 if f.finding_type == "secret" and "rule_id" in f.metadata:
                     rem_text = get_secret_remediation(f.metadata["rule_id"], lang=lang) or rem_text
@@ -428,6 +455,7 @@ class ReportFormatter:
     @staticmethod
     def to_html(report: ScanReport, lang: str = "en") -> str:
         """Formats scan report into a self-contained, interactive HTML security assessment dashboard."""
+        from sidik import __version__ as SIDIK_VERSION
         from sidik.i18n import get_secret_remediation, get_dependency_remediation
         s = report.summary
         is_id = (lang.lower() == "id")
@@ -534,7 +562,21 @@ class ReportFormatter:
             # Metadata items
             meta_chips = []
             for mk, mv in (f.metadata or {}).items():
-                if mk not in ["snippet", "full_match"] and mv:
+                if mk in ["snippet", "full_match"] or not mv:
+                    continue
+                if mk == "ml_triage" and isinstance(mv, dict):
+                    prob_val = f"{float(mv.get('secret_probability', 0.0)):.2f}"
+                    meta_chips.append(f"<span class='meta-tag'><strong>ML Action:</strong> {html.escape(str(mv.get('action', 'KEEP_ALERT')))}</span>")
+                    meta_chips.append(f"<span class='meta-tag'><strong>ML Probability:</strong> {html.escape(prob_val)}</span>")
+                    meta_chips.append(f"<span class='meta-tag'><strong>ML Model:</strong> {html.escape(str(mv.get('model_name', 'N/A')))}</span>")
+                    top_f = mv.get("top_feature_contributions")
+                    if isinstance(top_f, dict) and top_f:
+                        top_txt = ", ".join(
+                            f"{k}={float(v):.3f}" if isinstance(v, (int, float)) else f"{k}={v}"
+                            for k, v in list(top_f.items())[:3]
+                        )
+                        meta_chips.append(f"<span class='meta-tag'><strong>ML Top Features:</strong> {html.escape(top_txt)}</span>")
+                else:
                     meta_chips.append(f"<span class='meta-tag'><strong>{html.escape(str(mk))}:</strong> {html.escape(str(mv))}</span>")
             meta_html = "".join(meta_chips) if meta_chips else "<span class='text-muted'>-</span>"
 

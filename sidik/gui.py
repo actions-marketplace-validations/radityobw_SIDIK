@@ -25,6 +25,7 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 from sidik.core import SecurityScanner
 from sidik.models import ScanReport, Finding
+from sidik.plugins import get_plugin
 from sidik.reporting.formatter import ReportFormatter
 from sidik.i18n import t, set_language, get_current_language, get_secret_remediation, get_dependency_remediation
 
@@ -811,12 +812,38 @@ class RoundedDropdown(tk.Frame):
 class SecurityAnalyzerGUI:
     """Modern, information-dense, lightweight GUI for SIDIK with Apple-grade glassmorphism."""
 
-    def __init__(self, root: tk.Tk):
+    def __init__(
+        self,
+        root: tk.Tk,
+        enable_ml: bool = False,
+        ml_model_path: Optional[str] = None,
+        ml_sha256: Optional[str] = None,
+        ml_threshold: float = 0.5,
+        ml_suppress_fp: bool = False,
+        app_brand: Optional[str] = None,
+    ):
         self.root = root
-        self.root.title("SIDIK - Secret Identification & Dependency Inspection Kit")
+        brand_prefix = app_brand or "SIDIK"
+        self.root.title(f"{brand_prefix} - Secret Identification & Dependency Inspection Kit")
         self.root.geometry("1280x820")
         self.root.minsize(1060, 680)
         self.root.configure(bg=COLORS["bg"])
+
+        self.ml_plugin = get_plugin("sidik-ml")
+        self._initial_enable_ml = bool(enable_ml and self.ml_plugin is not None)
+        self._ml_model_path = ml_model_path
+        self._ml_sha256 = ml_sha256
+        self._ml_threshold = ml_threshold
+        self._ml_suppress_fp = ml_suppress_fp
+        if self.ml_plugin is not None and not self._ml_model_path:
+            discover_fn = getattr(self.ml_plugin, "discover_default_model", None)
+            if callable(discover_fn):
+                try:
+                    discovered = discover_fn()
+                    if isinstance(discovered, tuple) and len(discovered) == 2:
+                        self._ml_model_path, self._ml_sha256 = str(discovered[0]), str(discovered[1])
+                except Exception:
+                    pass
 
         self.last_report: Optional[ScanReport] = None
         self.all_findings: List[Finding] = []
@@ -1181,6 +1208,71 @@ class SecurityAnalyzerGUI:
             font=("Segoe UI", 8, "bold"))
         self.btn_save_chart.configure(state="disabled")
         self.btn_save_chart.pack(side="right", padx=3)
+
+        if self.ml_plugin is not None:
+            ml_row = tk.Frame(ctrl_card, bg=COLORS["card"])
+            ml_row.pack(fill="x", pady=(6, 0))
+
+            self.var_ml_enabled = tk.BooleanVar(value=self._initial_enable_ml)
+            self.var_ml_suppress = tk.BooleanVar(value=self._ml_suppress_fp)
+            self.chk_ml = ttk.Checkbutton(ml_row, text=t("opt_ml_triage"), variable=self.var_ml_enabled)
+            self.chk_ml.pack(side="left", padx=(0, 10))
+            self.chk_ml_suppress = ttk.Checkbutton(ml_row, text=t("opt_ml_suppress"), variable=self.var_ml_suppress)
+            self.chk_ml_suppress.pack(side="left", padx=(0, 12))
+
+            self.lbl_ml_model = tk.Label(
+                ml_row, text=t("lbl_ml_model"), bg=COLORS["card"], fg=COLORS["fg2"], font=("Segoe UI", 8, "bold")
+            )
+            self.lbl_ml_model.pack(side="left", padx=(0, 6))
+
+            self.ml_model_entry = tk.Entry(
+                ml_row,
+                bg=COLORS["entry"],
+                fg=COLORS["fg"],
+                insertbackground=COLORS["fg"],
+                font=("Consolas", 8),
+                relief="flat",
+                highlightthickness=1,
+                highlightbackground=COLORS["card_border"],
+                highlightcolor=COLORS["primary"],
+            )
+            self.ml_model_entry.pack(side="left", fill="x", expand=True, padx=(0, 6), ipady=3)
+            if self._ml_model_path:
+                self.ml_model_entry.insert(0, self._ml_model_path)
+
+            self.btn_browse_model = RoundedPillButton(
+                ml_row,
+                text=t("btn_browse_model"),
+                command=self._browse_ml_model,
+                width=105,
+                height=26,
+                bg_parent=COLORS["card"],
+                fill_color=COLORS["card2"],
+                hover_color="#1a2540",
+                border_color=COLORS["card_border"],
+                text_color=COLORS["primary_bright"],
+                font=("Segoe UI", 8, "bold"),
+            )
+            self.btn_browse_model.pack(side="left", padx=(0, 10))
+
+            self.lbl_ml_threshold = tk.Label(
+                ml_row, text=t("lbl_ml_threshold"), bg=COLORS["card"], fg=COLORS["fg2"], font=("Segoe UI", 8, "bold")
+            )
+            self.lbl_ml_threshold.pack(side="left", padx=(0, 4))
+            self.ml_threshold_entry = tk.Entry(
+                ml_row,
+                width=5,
+                bg=COLORS["entry"],
+                fg=COLORS["fg"],
+                insertbackground=COLORS["fg"],
+                font=("Consolas", 8),
+                relief="flat",
+                highlightthickness=1,
+                highlightbackground=COLORS["card_border"],
+                highlightcolor=COLORS["primary"],
+            )
+            self.ml_threshold_entry.pack(side="left", ipady=3)
+            self.ml_threshold_entry.insert(0, f"{self._ml_threshold:.2f}")
 
         # ── Scanning Progress Loading Bar ──────────────────────────────
         self.progress_frame = tk.Frame(ctrl_card, bg=COLORS["card"])
@@ -2111,6 +2203,12 @@ class SecurityAnalyzerGUI:
         self.chk_dep.configure(text=t("opt_dep"))
         self.chk_context.configure(text=t("opt_context"))
         self.chk_entropy.configure(text=t("opt_entropy"))
+        if hasattr(self, "chk_ml"):
+            self.chk_ml.configure(text=t("opt_ml_triage"))
+            self.chk_ml_suppress.configure(text=t("opt_ml_suppress"))
+            self.lbl_ml_model.configure(text=t("lbl_ml_model"))
+            self.btn_browse_model.set_text(t("btn_browse_model"))
+            self.lbl_ml_threshold.configure(text=t("lbl_ml_threshold"))
         self.btn_scan.set_text(t("btn_scan") if not self.is_scanning else t("btn_scanning"))
         self.btn_export.set_text(t("btn_export"))
         self.btn_save_chart.set_text(t("btn_save_chart"))
@@ -2207,6 +2305,16 @@ class SecurityAnalyzerGUI:
             for btn in getattr(self, "_preset_buttons", []):
                 btn.set_active(False)
 
+    def _browse_ml_model(self):
+        fpath = filedialog.askopenfilename(
+            title=t("btn_browse_model"),
+            filetypes=[("Verified SKOPS Model (*.skops)", "*.skops"), ("All Files", "*.*")],
+        )
+        if fpath and hasattr(self, "ml_model_entry"):
+            self.ml_model_entry.delete(0, tk.END)
+            self.ml_model_entry.insert(0, fpath)
+            self._ml_sha256 = None
+
     def _start_scan(self):
         if self.is_scanning:
             return
@@ -2215,6 +2323,21 @@ class SecurityAnalyzerGUI:
         if not target or not os.path.exists(target):
             messagebox.showerror(t("dialog_target_not_found_title"), t("dialog_target_not_found_body", target=target))
             return
+
+        ml_config: Dict[str, Any] = {"enabled": False}
+        if self.ml_plugin is not None and hasattr(self, "var_ml_enabled") and self.var_ml_enabled.get():
+            m_path = self.ml_model_entry.get().strip() or None
+            try:
+                th_val = float(self.ml_threshold_entry.get().strip() or "0.5")
+            except ValueError:
+                th_val = 0.5
+            ml_config = {
+                "enabled": True,
+                "model_path": m_path,
+                "sha256": self._ml_sha256 if m_path == self._ml_model_path else None,
+                "threshold": th_val,
+                "suppress_false_positives": bool(self.var_ml_suppress.get()),
+            }
 
         self.is_scanning = True
         self.btn_scan.configure(state="disabled", text=t("btn_scanning"))
@@ -2229,10 +2352,10 @@ class SecurityAnalyzerGUI:
             self.lbl_progress_pct.configure(text="0%")
             self.progress_frame.pack(fill="x", pady=(8, 0))
 
-        t_thread = threading.Thread(target=self._run_scan_thread, args=(target,), daemon=True)
+        t_thread = threading.Thread(target=self._run_scan_thread, args=(target, ml_config), daemon=True)
         t_thread.start()
 
-    def _run_scan_thread(self, target: str):
+    def _run_scan_thread(self, target: str, ml_config: Optional[Dict[str, Any]] = None):
         import time as _time
         last_ui_update = [0.0]
 
@@ -2243,12 +2366,21 @@ class SecurityAnalyzerGUI:
                 self.root.after(0, self._update_scan_progress, current, total, filename)
 
         try:
+            cfg = ml_config or {}
+            plugins = [self.ml_plugin] if (cfg.get("enabled") and self.ml_plugin is not None) else []
             scanner = SecurityScanner(
                 enable_secret_scan=self.var_secret.get(),
                 enable_dependency_scan=self.var_dep.get(),
                 enable_context=self.var_context.get(),
                 enable_entropy=self.var_entropy.get(),
                 measure_memory=True,
+                post_scan_plugins=plugins,
+                plugin_options={
+                    "model_path": cfg.get("model_path"),
+                    "sha256": cfg.get("sha256"),
+                    "threshold": cfg.get("threshold", 0.5),
+                    "suppress_false_positives": cfg.get("suppress_false_positives", False),
+                },
             )
             report = scanner.scan_path(target, progress_callback=on_progress)
             self.root.after(0, self._scan_completed, report)
@@ -2646,9 +2778,24 @@ class SecurityAnalyzerGUI:
                 info.append("")
 
             if len(selected_list) == 1 and finding.metadata:
-                info.append(t("lbl_technical_metadata"))
-                for k, v in finding.metadata.items():
-                    info.append(f"  - {k}: {v}")
+                ml_triage = finding.metadata.get("ml_triage")
+                if isinstance(ml_triage, dict):
+                    info.append(t("lbl_ml_triage_header"))
+                    info.append(f"  - Action: {ml_triage.get('action', 'KEEP_ALERT')}")
+                    info.append(f"  - Secret Probability: {float(ml_triage.get('secret_probability', 0.0)):.4f}")
+                    info.append(f"  - Model: {ml_triage.get('model_name', 'N/A')} (v{ml_triage.get('model_version', 'N/A')})")
+                    info.append(f"  - Suppressed by ML: {ml_triage.get('suppressed_by_ml', False)}")
+                    top_feats = ml_triage.get("top_feature_contributions")
+                    if isinstance(top_feats, dict) and top_feats:
+                        info.append("  - Top Feature Contributions:")
+                        for fk, fv in top_feats.items():
+                            info.append(f"      * {fk}: {fv}")
+                    info.append("")
+                other_meta = {k: v for k, v in finding.metadata.items() if k != "ml_triage"}
+                if other_meta:
+                    info.append(t("lbl_technical_metadata"))
+                    for k, v in other_meta.items():
+                        info.append(f"  - {k}: {v}")
 
             blocks.append("\n".join(info))
 
@@ -2711,7 +2858,14 @@ class SecurityAnalyzerGUI:
             messagebox.showerror(t("dialog_export_error_title"), f"{e}")
 
 
-def main():
+def main(
+    enable_ml: bool = False,
+    ml_model_path: Optional[str] = None,
+    ml_sha256: Optional[str] = None,
+    ml_threshold: float = 0.5,
+    ml_suppress_fp: bool = False,
+    app_brand: Optional[str] = None,
+):
     if sys.platform == "win32":
         try:
             import ctypes
@@ -2719,7 +2873,15 @@ def main():
         except Exception:
             pass
     root = tk.Tk()
-    app = SecurityAnalyzerGUI(root)
+    app = SecurityAnalyzerGUI(
+        root,
+        enable_ml=enable_ml,
+        ml_model_path=ml_model_path,
+        ml_sha256=ml_sha256,
+        ml_threshold=ml_threshold,
+        ml_suppress_fp=ml_suppress_fp,
+        app_brand=app_brand,
+    )
     root.mainloop()
 
 

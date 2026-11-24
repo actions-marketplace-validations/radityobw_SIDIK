@@ -53,6 +53,8 @@ Jurusan Informatika, Fakultas Teknik, Universitas Sultan Ageng Tirtayasa (Untirt
    - Mendukung ekspor ke **Konsol Berwarna ANSI** (`console`), **OASIS SARIF v2.1.0** (`sarif` untuk *GitHub Code Scanning*), **GitHub Actions Workflow Annotations** (`github`), **Dasbor Web HTML Mandiri** (`html`), **Markdown** (`markdown`), **JSON Terstruktur** (`json`), dan **Tabel CSV/Spreadsheet** (`csv`).
 6. **Mekanisme Pengecualian Fleksibel (*Whitelist & Ignore Support*):**
    - Mendukung berkas `.sidikignore` (sintaks pola `.gitignore`) serta komentar penekan sebaris (`# sidik:ignore`, `# nosec`, `# noqa: sidik`).
+7. **Arsitektur Ekstensi *Plugin* Terdekupel (`sidik.plugins`):**
+   - Menyediakan *hook* pasca-pemindaian berbasis `importlib.metadata.entry_points(group="sidik.plugins")` sehingga ekstensi opsional seperti `SIDIK-ML` dapat memperkaya CLI, konsol interaktif, GUI, serta laporan tanpa menambah dependensi ML ke `sidik-security`.
 
 ---
 

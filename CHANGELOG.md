@@ -2,6 +2,13 @@
 
 Seluruh perubahan penting pada paket `sidik-security` didokumentasikan pada berkas ini.
 
+## [1.2.0] - 2026-11-24
+
+### Ditambahkan
+- Antarmuka *plugin* pasca-pemindaian terdekupel ([`sidik/plugins.py`](sidik/plugins.py)) berbasis standar `importlib.metadata.entry_points(group="sidik.plugins")` (`PostScanPlugin`, `discover_plugins()`, `get_plugin()`, `apply_post_scan_plugins()`), tanpa menambahkan dependensi ML di `SIDIK`.
+- Dukungan parameter opsional `post_scan_plugins` dan `plugin_options` pada `SecurityScanner`.
+- Dukungan CLI (`--list-plugins`, `--enable-ml`, `--plugin`, `--ml-model`, `--ml-sha256`, `--ml-threshold`, `--ml-suppress-fp`), menu pengaturan *Interactive CLI*, kontrol opsional di *Desktop GUI*, serta pelaporan `ml_triage` pada `ReportFormatter` (Konsol, Markdown, HTML, SARIF, JSON, dan CSV) saat ekstensi eksternal seperti `sidik-ml` terpasang.
+
 ## [1.1.0] - 2026-11-24
 
 ### Ditambahkan

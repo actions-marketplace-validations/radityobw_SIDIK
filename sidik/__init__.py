@@ -15,8 +15,15 @@ from sidik.models import (
     compute_stable_id,
 )
 from sidik.i18n import t, set_language, get_current_language
+from sidik.plugins import (
+    PLUGIN_ENTRY_POINT_GROUP,
+    PostScanPlugin,
+    discover_plugins,
+    get_plugin,
+    apply_post_scan_plugins,
+)
 
-__version__ = "1.1.0"
+__version__ = "1.2.0"
 __tool_name__ = "SIDIK"
 __full_name__ = "Secret Identification and Dependency Inspection Kit"
 
@@ -30,6 +37,11 @@ __all__ = [
     "SecretCandidate",
     "CANDIDATE_SCHEMA_VERSION",
     "compute_stable_id",
+    "PLUGIN_ENTRY_POINT_GROUP",
+    "PostScanPlugin",
+    "discover_plugins",
+    "get_plugin",
+    "apply_post_scan_plugins",
     "t",
     "set_language",
     "get_current_language",

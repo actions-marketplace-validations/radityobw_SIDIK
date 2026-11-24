@@ -6,10 +6,11 @@ import stat
 import subprocess
 import sys
 import os
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 from sidik import __version__ as VERSION
 from sidik.core import SecurityScanner
 from sidik.models import ScanReport, Finding
+from sidik.plugins import discover_plugins, get_plugin
 from sidik.reporting.formatter import ReportFormatter
 from sidik.i18n import get_secret_remediation, get_dependency_remediation
 
@@ -91,11 +92,20 @@ def install_git_hook(target_dir: str = ".") -> int:
     return 0
 
 
-def run_interactive_cli(initial_lang: str = "id") -> int:
+def run_interactive_cli(
+    initial_lang: str = "id",
+    enable_ml_plugin: bool = False,
+    ml_model_path: Optional[str] = None,
+    ml_sha256: Optional[str] = None,
+    ml_threshold: float = 0.5,
+    ml_suppress_fp: bool = False,
+    banner_title: Optional[str] = None,
+) -> int:
     """Runs the interactive SIDIK CLI Window / Terminal User Interface (TUI)."""
     _enable_windows_ansi()
+    app_label = banner_title or "SIDIK CLI"
     if sys.platform == "win32":
-        os.system("title SIDIK CLI v1.0 - Interactive Static Security Console")
+        os.system(f"title {app_label} v{VERSION} - Interactive Static Security Console")
 
     C_RESET = "\033[0m"
     C_BOLD = "\033[1m"
@@ -111,20 +121,39 @@ def run_interactive_cli(initial_lang: str = "id") -> int:
     lang = initial_lang
     enable_context = True
     enable_entropy = True
+    ml_plugin = get_plugin("sidik-ml")
+    ml_enabled = bool(enable_ml_plugin and ml_plugin is not None)
+    cur_ml_model = ml_model_path
+    cur_ml_sha256 = ml_sha256
+    cur_ml_threshold = ml_threshold
+    cur_ml_suppress = ml_suppress_fp
+    if ml_plugin is not None and not cur_ml_model:
+        discover_fn = getattr(ml_plugin, "discover_default_model", None)
+        if callable(discover_fn):
+            try:
+                discovered = discover_fn()
+                if isinstance(discovered, tuple) and len(discovered) == 2:
+                    cur_ml_model, cur_ml_sha256 = str(discovered[0]), str(discovered[1])
+            except Exception:
+                pass
     last_report: Optional[ScanReport] = None
 
     def print_banner():
         ctx_str = f"{C_GREEN}ON{C_RESET}" if enable_context else f"{C_RED}OFF{C_RESET}"
         ent_str = f"{C_GREEN}ON{C_RESET}" if enable_entropy else f"{C_RED}OFF{C_RESET}"
+        if ml_plugin is None:
+            ml_str = f"{C_DIM}Not Installed{C_RESET}"
+        else:
+            ml_str = f"{C_GREEN}ON{C_RESET}" if ml_enabled else f"{C_YELLOW}OFF{C_RESET}"
         last_str = (
             f"{len(last_report.findings)} temuan ({last_report.summary.scan_duration_seconds}s)"
             if last_report else ("Belum ada" if lang == "id" else "None")
         )
         print(f"\n{C_CYAN}╔════════════════════════════════════════════════════════════════════════════════╗{C_RESET}")
-        print(f"{C_CYAN}║{C_RESET}  {C_BOLD}{C_WHITE}🛡️  SIDIK CLI v{VERSION} - Secret Identification & Dependency Inspection Kit{C_RESET}      {C_CYAN}║{C_RESET}")
+        print(f"{C_CYAN}║{C_RESET}  {C_BOLD}{C_WHITE}🛡️  {app_label} v{VERSION} - Secret Identification & Dependency Inspection Kit{C_RESET}")
         print(f"{C_CYAN}║{C_RESET}  {C_DIM}Lightweight Offline Python SAST & SCA | Bundled OSV PyPI Advisory DB{C_RESET}        {C_CYAN}║{C_RESET}")
         print(f"{C_CYAN}╠════════════════════════════════════════════════════════════════════════════════╣{C_RESET}")
-        print(f"{C_CYAN}║{C_RESET}  Bahasa: {C_BOLD}{lang.upper()}{C_RESET}  |  Filter Konteks: {ctx_str}  |  Entropi: {ent_str}  |  Scan Terakhir: {C_YELLOW}{last_str}{C_RESET}")
+        print(f"{C_CYAN}║{C_RESET}  Bahasa: {C_BOLD}{lang.upper()}{C_RESET} | Konteks: {ctx_str} | Entropi: {ent_str} | ML Plugin: {ml_str} | Terakhir: {C_YELLOW}{last_str}{C_RESET}")
         print(f"{C_CYAN}╚════════════════════════════════════════════════════════════════════════════════╝{C_RESET}")
         if lang == "id":
             print(f"  {C_BOLD}[1]{C_RESET} 🔍 Pindai Folder / Berkas Kustom (Input Path)")
@@ -155,12 +184,21 @@ def run_interactive_cli(initial_lang: str = "id") -> int:
         if not os.path.exists(target):
             print(f"{C_RED}[!] Path tidak ditemukan: {target}{C_RESET}")
             return
+        active_plugins = [ml_plugin] if (ml_enabled and ml_plugin is not None) else []
+        plugin_opts: Dict[str, Any] = {
+            "model_path": cur_ml_model,
+            "sha256": cur_ml_sha256,
+            "threshold": cur_ml_threshold,
+            "suppress_false_positives": cur_ml_suppress,
+        }
         scanner = SecurityScanner(
             enable_secret_scan=sec,
             enable_dependency_scan=dep,
             enable_context=enable_context,
             enable_entropy=enable_entropy,
             measure_memory=True,
+            post_scan_plugins=active_plugins,
+            plugin_options=plugin_opts,
         )
 
         def progress(cur: int, tot: int, fname: str):
@@ -293,7 +331,11 @@ def run_interactive_cli(initial_lang: str = "id") -> int:
             print(f"  {C_BOLD}[c]{C_RESET} Ganti Bahasa Antarmuka         (Saat ini: {lang.upper()})")
             print(f"  {C_BOLD}[d]{C_RESET} Tampilkan Statistik Basis Data OSV Luring")
             print(f"  {C_BOLD}[e]{C_RESET} Pasang Git Pre-Commit Hook (.git/hooks/pre-commit)")
-            sub = input("  Pilih pengaturan [a/b/c/d/e]: ").strip().lower()
+            if ml_plugin is not None:
+                print(f"  {C_BOLD}[f]{C_RESET} Toggle Plugin ML Triage        (Saat ini: {'ON' if ml_enabled else 'OFF'})")
+                print(f"  {C_BOLD}[g]{C_RESET} Atur Model .skops & SHA-256    (Saat ini: {cur_ml_model or 'Pass-Through'})")
+                print(f"  {C_BOLD}[h]{C_RESET} Atur Ambang & Supresi FP ML    (Ambang={cur_ml_threshold:.2f}, Supresi={'ON' if cur_ml_suppress else 'OFF'})")
+            sub = input("  Pilih pengaturan: ").strip().lower()
             if sub == "a":
                 enable_context = not enable_context
                 print(f"{C_GREEN}[OK] Filter Konteks Leksikal: {'ON' if enable_context else 'OFF'}{C_RESET}")
@@ -311,10 +353,34 @@ def run_interactive_cli(initial_lang: str = "id") -> int:
                 print(f"  • Sumber Basis Data  : {db.metadata.get('source', 'OSV PyPI')}")
             elif sub == "e":
                 install_git_hook(".")
+            elif sub == "f" and ml_plugin is not None:
+                ml_enabled = not ml_enabled
+                print(f"{C_GREEN}[OK] Plugin ML Triage: {'ON' if ml_enabled else 'OFF'}{C_RESET}")
+            elif sub == "g" and ml_plugin is not None:
+                new_m = input("  Path berkas model .skops (kosongkan untuk pass-through): ").strip()
+                cur_ml_model = new_m or None
+                cur_ml_sha256 = (input("  SHA-256 (kosongkan jika pakai .manifest.json): ").strip() or None) if cur_ml_model else None
+                print(f"{C_GREEN}[OK] Model ML diatur ke: {cur_ml_model or 'Pass-Through'}{C_RESET}")
+            elif sub == "h" and ml_plugin is not None:
+                th_in = input(f"  Ambang probabilitas [0.0-1.0, saat ini {cur_ml_threshold:.2f}]: ").strip()
+                if th_in:
+                    try:
+                        cur_ml_threshold = float(th_in)
+                    except ValueError:
+                        print(f"{C_RED}[!] Nilai ambang tidak valid.{C_RESET}")
+                cur_ml_suppress = not cur_ml_suppress
+                print(f"{C_GREEN}[OK] Ambang={cur_ml_threshold:.2f}, Supresi FP non-CRITICAL={'ON' if cur_ml_suppress else 'OFF'}{C_RESET}")
         elif low == "9":
             print(f"{C_CYAN}[*] Membuka jendela Desktop GUI SIDIK...{C_RESET}")
             from sidik.gui import main as gui_main
-            gui_main()
+            gui_main(
+                enable_ml=ml_enabled,
+                ml_model_path=cur_ml_model,
+                ml_sha256=cur_ml_sha256,
+                ml_threshold=cur_ml_threshold,
+                ml_suppress_fp=cur_ml_suppress,
+                app_brand=banner_title,
+            )
         elif low == "copy code":
             copy_all_items("code")
         elif low == "copy rem":
@@ -454,6 +520,42 @@ def build_arg_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Show advisory database statistics (size, source, snapshot date), then exit"
     )
+    parser.add_argument(
+        "--plugin",
+        default=None,
+        help="Optional post-scan plugin name registered under sidik.plugins (e.g., sidik-ml)"
+    )
+    parser.add_argument(
+        "--enable-ml",
+        action="store_true",
+        help="Shorthand for --plugin sidik-ml when sidik-ml is installed"
+    )
+    parser.add_argument(
+        "--ml-model",
+        default=None,
+        help="Path to verified .skops model artifact for ML triage plugin"
+    )
+    parser.add_argument(
+        "--ml-sha256",
+        default=None,
+        help="Expected SHA-256 checksum for --ml-model (auto-reads <model>.manifest.json if omitted)"
+    )
+    parser.add_argument(
+        "--ml-threshold",
+        type=float,
+        default=0.5,
+        help="Probability threshold for ML triage (default: 0.5)"
+    )
+    parser.add_argument(
+        "--ml-suppress-fp",
+        action="store_true",
+        help="Suppress non-CRITICAL findings classified as false positives by ML plugin"
+    )
+    parser.add_argument(
+        "--list-plugins",
+        action="store_true",
+        help="List discovered SIDIK post-scan plugins and exit"
+    )
     return parser
 
 
@@ -463,10 +565,28 @@ def run_cli_with_args(argv: Optional[List[str]] = None, exit_on_finish: bool = T
     args = parser.parse_args(argv)
 
     if args.interactive:
-        code = run_interactive_cli(initial_lang=args.lang)
+        code = run_interactive_cli(
+            initial_lang=args.lang,
+            enable_ml_plugin=bool(args.enable_ml or (args.plugin and args.plugin.lower() == "sidik-ml")),
+            ml_model_path=args.ml_model,
+            ml_sha256=args.ml_sha256,
+            ml_threshold=args.ml_threshold,
+            ml_suppress_fp=args.ml_suppress_fp,
+        )
         if exit_on_finish:
             sys.exit(code)
         return code
+
+    if args.list_plugins:
+        plugins = discover_plugins()
+        if not plugins:
+            print("No SIDIK plugins installed.")
+        else:
+            for p in plugins:
+                print(f"{p.name} ({p.version}) - {p.description}")
+        if exit_on_finish:
+            sys.exit(0)
+        return 0
 
     if args.update_db:
         from sidik.dependency_analyzer import osv_import
@@ -503,7 +623,14 @@ def run_cli_with_args(argv: Optional[List[str]] = None, exit_on_finish: bool = T
     # If invoked with zero arguments in an interactive terminal, launch the Interactive CLI Console!
     if not target_path:
         if sys.stdin.isatty() and sys.stdout.isatty() and exit_on_finish:
-            code = run_interactive_cli(initial_lang=args.lang)
+            code = run_interactive_cli(
+                initial_lang=args.lang,
+                enable_ml_plugin=bool(args.enable_ml or (args.plugin and args.plugin.lower() == "sidik-ml")),
+                ml_model_path=args.ml_model,
+                ml_sha256=args.ml_sha256,
+                ml_threshold=args.ml_threshold,
+                ml_suppress_fp=args.ml_suppress_fp,
+            )
             sys.exit(code)
         parser.error("Target path is required (e.g., 'sidik .' or 'sidik --target <path>' or 'sidik -i')")
 
@@ -512,6 +639,17 @@ def run_cli_with_args(argv: Optional[List[str]] = None, exit_on_finish: bool = T
         if exit_on_finish:
             sys.exit(2)
         return 2
+
+    active_plugins = []
+    if args.plugin or args.enable_ml:
+        req_plugin = args.plugin or "sidik-ml"
+        plug = get_plugin(req_plugin)
+        if plug is None:
+            print(f"Error: Plugin '{req_plugin}' is not installed. Install it (e.g., pip install sidik-ml).", file=sys.stderr)
+            if exit_on_finish:
+                sys.exit(2)
+            return 2
+        active_plugins.append(plug)
 
     mode_val = (args.mode or "all").lower()
     is_secret_only = args.secret_only or mode_val in ("secret", "secrets")
@@ -524,6 +662,13 @@ def run_cli_with_args(argv: Optional[List[str]] = None, exit_on_finish: bool = T
         enable_entropy=not args.no_entropy,
         custom_vulnerability_db=args.db,
         measure_memory=True,
+        post_scan_plugins=active_plugins,
+        plugin_options={
+            "model_path": args.ml_model,
+            "sha256": args.ml_sha256,
+            "threshold": args.ml_threshold,
+            "suppress_false_positives": args.ml_suppress_fp,
+        },
     )
 
     def cli_progress(current: int, total: int, filename: str):

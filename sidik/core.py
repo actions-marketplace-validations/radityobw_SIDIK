@@ -4,8 +4,9 @@ import os
 import time
 import fnmatch
 import tracemalloc
-from typing import List, Optional, Callable, Tuple
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 from sidik.models import ScanReport, SecretCandidate
+from sidik.plugins import apply_post_scan_plugins
 from sidik.secret_detector.detector import SecretDetector
 from sidik.dependency_analyzer.analyzer import DependencyAnalyzer, MANIFEST_FILENAMES
 from sidik.dependency_analyzer.database import VulnerabilityDatabase
@@ -84,6 +85,8 @@ class SecurityScanner:
         ignore_patterns: Optional[List[str]] = None,
         measure_memory: bool = False,
         secret_extensions: Optional[Tuple[str, ...]] = None,
+        post_scan_plugins: Optional[Sequence[Any]] = None,
+        plugin_options: Optional[Dict[str, Any]] = None,
     ):
         self.enable_secret_scan = enable_secret_scan
         self.enable_dependency_scan = enable_dependency_scan
@@ -93,6 +96,8 @@ class SecurityScanner:
         self.custom_ignore_patterns = list(ignore_patterns) if ignore_patterns else []
         self.measure_memory = measure_memory
         self.secret_extensions = secret_extensions or (".py", ".env")
+        self.post_scan_plugins = list(post_scan_plugins) if post_scan_plugins else []
+        self.plugin_options = dict(plugin_options) if plugin_options else {}
 
     def _discover_candidate_files(self, target_path: str) -> List[Tuple[str, str, bool, bool]]:
         """Discovers target files for secret and/or dependency scanning honoring .sidikignore."""
@@ -218,7 +223,16 @@ class SecurityScanner:
 
         aggregator.set_files_scanned_count(files_scanned)
         peak_mb = peak_mem_bytes / (1024 * 1024)
-        return aggregator.build_report(duration_seconds=duration, peak_memory_mb=peak_mb)
+        report = aggregator.build_report(duration_seconds=duration, peak_memory_mb=peak_mb)
+        if self.post_scan_plugins:
+            report = apply_post_scan_plugins(
+                self,
+                target_path,
+                report,
+                plugins=self.post_scan_plugins,
+                options=self.plugin_options,
+            )
+        return report
 
     def extract_secret_candidates(
         self,
