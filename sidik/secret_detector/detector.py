@@ -3,7 +3,7 @@
 import hashlib
 import os
 import re
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Tuple
 from sidik.models import (
     Finding,
     SeverityLevel,
@@ -37,6 +37,24 @@ _BASE64_RE = re.compile(r"^[A-Za-z0-9+/=_\-]+$")
 _ASSIGN_IDENT_RE = re.compile(r"^\s*(?:['\"]?)([A-Za-z_][A-Za-z0-9_\-.]*)(?:['\"]?)\s*(?:=|:=|:)")
 _TEST_PATH_MARKERS = ("test", "tests", "mock", "fixture", "spec")
 _EXAMPLE_PATH_MARKERS = ("example", "examples", "sample", "doc", "docs", "readme")
+DEFAULT_MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024  # 5 MB safety guard
+
+
+def _read_text_file_safely(file_path: str, max_bytes: int = DEFAULT_MAX_FILE_SIZE_BYTES) -> Optional[str]:
+    """Reads a UTF-8 text file safely, skipping missing, oversized, or binary (NUL-byte) files."""
+    if not os.path.isfile(file_path):
+        return None
+    try:
+        if max_bytes > 0 and os.path.getsize(file_path) > max_bytes:
+            return None
+        with open(file_path, "rb") as fb:
+            head = fb.read(4096)
+            if b"\x00" in head:
+                return None
+            rest = fb.read()
+        return (head + rest).decode("utf-8", errors="ignore")
+    except Exception:
+        return None
 
 
 def mask_secret(secret: str) -> str:
@@ -168,9 +186,15 @@ def _build_secret_candidate(
 class SecretDetector:
     """Core secret detection scanner with configurable ablation options."""
 
-    def __init__(self, enable_context: bool = True, enable_entropy: bool = True):
+    def __init__(
+        self,
+        enable_context: bool = True,
+        enable_entropy: bool = True,
+        max_file_size_bytes: int = DEFAULT_MAX_FILE_SIZE_BYTES,
+    ):
         self.enable_context = enable_context
         self.enable_entropy = enable_entropy
+        self.max_file_size_bytes = max_file_size_bytes
         self.patterns = SECRET_PATTERNS
 
     def _evaluate_match(self, candidate: str, line: str, rule: Dict[str, Any], entropy: float):
@@ -197,18 +221,69 @@ class SecretDetector:
 
         return is_valid, confidence, meta
 
-    def extract_candidates(
+    def scan_and_extract_content(
         self,
         content: str,
         file_path: str = "memory",
-        include_filtered: bool = True
-    ) -> List[SecretCandidate]:
-        """Extracts structured pre-triage SecretCandidate records for inspection or ML inference."""
+        include_filtered: bool = True,
+    ) -> Tuple[List[Finding], List[SecretCandidate]]:
+        """Scans content and extracts structured SecretCandidate objects in a single pass."""
+        findings: List[Finding] = []
         candidates: List[SecretCandidate] = []
         lines = content.splitlines()
         use_fast_precheck = (self.patterns is SECRET_PATTERNS)
         specific_patterns = [r for r in self.patterns if r["id"] != "SEC012"]
         generic_rule = next((r for r in self.patterns if r["id"] == "SEC012"), None)
+        norm_path = file_path.replace("\\", "/")
+
+        def _append_hit(
+            rule: Dict[str, Any],
+            candidate_str: str,
+            line: str,
+            prev_line: str,
+            line_num: int,
+            col_start: int,
+            col_end: int,
+            entropy: float,
+            is_valid: bool,
+            confidence: ConfidenceScore,
+            meta: Dict[str, Any],
+            has_inline_suppression: bool,
+        ) -> None:
+            finding_id = compute_stable_id(
+                f"SEC-{rule['id']}", norm_path, str(line_num), str(col_start), candidate_str
+            )
+            if is_valid and not has_inline_suppression:
+                findings.append(Finding(
+                    id=finding_id,
+                    finding_type="secret",
+                    category=rule["category"],
+                    title=f"{rule['name']} Found",
+                    description=rule["description"],
+                    file_path=file_path,
+                    line_number=line_num,
+                    snippet=f"Line {line_num}: {line.replace(candidate_str, mask_secret(candidate_str)).strip()}",
+                    severity=SeverityLevel(rule["severity"]),
+                    confidence=confidence,
+                    remediation=get_secret_remediation(rule["id"]) or rule.get("remediation"),
+                    metadata=meta,
+                ))
+            if include_filtered or (is_valid and not has_inline_suppression):
+                candidates.append(_build_secret_candidate(
+                    rule=rule,
+                    candidate=candidate_str,
+                    line=line,
+                    prev_line=prev_line,
+                    file_path=file_path,
+                    line_num=line_num,
+                    col_start=col_start,
+                    col_end=col_end,
+                    entropy=entropy,
+                    is_valid=(is_valid and not has_inline_suppression),
+                    confidence=confidence,
+                    context_meta=meta,
+                    has_inline_suppression=has_inline_suppression,
+                ))
 
         for line_num, line in enumerate(lines, start=1):
             if use_fast_precheck and not _FAST_LINE_PRECHECK.search(line):
@@ -234,26 +309,13 @@ class SecretDetector:
                         continue
                     entropy = calculate_shannon_entropy(candidate_str)
                     is_valid, confidence, meta = self._evaluate_match(candidate_str, line, rule, entropy)
-                    if has_inline_suppression:
-                        is_valid = False
-                    if is_valid:
+                    if is_valid and not has_inline_suppression:
                         matched_specific = True
-                    if include_filtered or is_valid:
-                        candidates.append(_build_secret_candidate(
-                            rule=rule,
-                            candidate=candidate_str,
-                            line=line,
-                            prev_line=prev_line,
-                            file_path=file_path,
-                            line_num=line_num,
-                            col_start=match.start(grp_idx),
-                            col_end=match.end(grp_idx),
-                            entropy=entropy,
-                            is_valid=is_valid,
-                            confidence=confidence,
-                            context_meta=meta,
-                            has_inline_suppression=has_inline_suppression,
-                        ))
+                    _append_hit(
+                        rule, candidate_str, line, prev_line, line_num,
+                        match.start(grp_idx), match.end(grp_idx),
+                        entropy, is_valid, confidence, meta, has_inline_suppression,
+                    )
 
             if not matched_specific and generic_rule:
                 for match in generic_rule["pattern"].finditer(line):
@@ -263,133 +325,50 @@ class SecretDetector:
                         continue
                     entropy = calculate_shannon_entropy(candidate_str)
                     is_valid, confidence, meta = self._evaluate_match(candidate_str, line, generic_rule, entropy)
-                    if has_inline_suppression:
-                        is_valid = False
-                    if include_filtered or is_valid:
-                        candidates.append(_build_secret_candidate(
-                            rule=generic_rule,
-                            candidate=candidate_str,
-                            line=line,
-                            prev_line=prev_line,
-                            file_path=file_path,
-                            line_num=line_num,
-                            col_start=match.start(grp_idx),
-                            col_end=match.end(grp_idx),
-                            entropy=entropy,
-                            is_valid=is_valid,
-                            confidence=confidence,
-                            context_meta=meta,
-                            has_inline_suppression=has_inline_suppression,
-                        ))
+                    _append_hit(
+                        generic_rule, candidate_str, line, prev_line, line_num,
+                        match.start(grp_idx), match.end(grp_idx),
+                        entropy, is_valid, confidence, meta, has_inline_suppression,
+                    )
 
+        return findings, candidates
+
+    def scan_and_extract_file(
+        self,
+        file_path: str,
+        include_filtered: bool = True,
+    ) -> Tuple[List[Finding], List[SecretCandidate]]:
+        """Reads file safely and returns both Findings and SecretCandidates in one pass."""
+        content = _read_text_file_safely(file_path, max_bytes=self.max_file_size_bytes)
+        if content is None:
+            return [], []
+        return self.scan_and_extract_content(content, file_path=file_path, include_filtered=include_filtered)
+
+    def extract_candidates(
+        self,
+        content: str,
+        file_path: str = "memory",
+        include_filtered: bool = True
+    ) -> List[SecretCandidate]:
+        """Extracts structured pre-triage SecretCandidate records for inspection or ML inference."""
+        _, candidates = self.scan_and_extract_content(content, file_path=file_path, include_filtered=include_filtered)
         return candidates
 
     def extract_candidates_from_file(self, file_path: str, include_filtered: bool = True) -> List[SecretCandidate]:
         """Extracts structured SecretCandidate records from a local file."""
-        if not os.path.isfile(file_path):
+        content = _read_text_file_safely(file_path, max_bytes=self.max_file_size_bytes)
+        if content is None:
             return []
-        try:
-            with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
-                content = f.read()
-            return self.extract_candidates(content, file_path=file_path, include_filtered=include_filtered)
-        except Exception:
-            return []
+        return self.extract_candidates(content, file_path=file_path, include_filtered=include_filtered)
 
     def scan_content(self, content: str, file_path: str = "memory") -> List[Finding]:
         """Scans source code content string and returns all identified secret findings."""
-        findings: List[Finding] = []
-        lines = content.splitlines()
-        use_fast_precheck = (self.patterns is SECRET_PATTERNS)
-        specific_patterns = [r for r in self.patterns if r["id"] != "SEC012"]
-        generic_rule = next((r for r in self.patterns if r["id"] == "SEC012"), None)
-        norm_path = file_path.replace("\\", "/")
-
-        for line_num, line in enumerate(lines, start=1):
-            if use_fast_precheck and not _FAST_LINE_PRECHECK.search(line):
-                continue
-
-            # Check for inline suppression comments (e.g., # sidik:ignore, # nosec)
-            line_lower = line.lower()
-            if "sidik:ignore" in line_lower or "# nosec" in line_lower or "# noqa: sidik" in line_lower:
-                continue
-
-            line_findings: List[Finding] = []
-            matched_specific_rule = False
-
-            # First pass: check specific rules (SEC001 - SEC011)
-            for rule in specific_patterns:
-                matches = rule["pattern"].finditer(line)
-                for match in matches:
-                    grp_idx = 1 if match.groups() else 0
-                    candidate = match.group(grp_idx)
-                    if not candidate:
-                        continue
-
-                    entropy = calculate_shannon_entropy(candidate)
-                    is_valid, confidence, meta = self._evaluate_match(candidate, line, rule, entropy)
-
-                    if is_valid:
-                        matched_specific_rule = True
-                        finding_id = compute_stable_id(
-                            f"SEC-{rule['id']}", norm_path, str(line_num), str(match.start(grp_idx)), candidate
-                        )
-                        line_findings.append(Finding(
-                            id=finding_id,
-                            finding_type="secret",
-                            category=rule["category"],
-                            title=f"{rule['name']} Found",
-                            description=rule["description"],
-                            file_path=file_path,
-                            line_number=line_num,
-                            snippet=f"Line {line_num}: {line.replace(candidate, mask_secret(candidate)).strip()}",
-                            severity=SeverityLevel(rule["severity"]),
-                            confidence=confidence,
-                            remediation=get_secret_remediation(rule["id"]) or rule.get("remediation"),
-                            metadata=meta
-                        ))
-
-            # Second pass: Generic secret rule (SEC012) if no specific rule matched on this line
-            if not matched_specific_rule and generic_rule:
-                matches = generic_rule["pattern"].finditer(line)
-                for match in matches:
-                    grp_idx = 1 if match.groups() else 0
-                    candidate = match.group(grp_idx)
-                    if not candidate:
-                        continue
-
-                    entropy = calculate_shannon_entropy(candidate)
-                    is_valid, confidence, meta = self._evaluate_match(candidate, line, generic_rule, entropy)
-
-                    if is_valid:
-                        finding_id = compute_stable_id(
-                            f"SEC-{generic_rule['id']}", norm_path, str(line_num), str(match.start(grp_idx)), candidate
-                        )
-                        line_findings.append(Finding(
-                            id=finding_id,
-                            finding_type="secret",
-                            category=generic_rule["category"],
-                            title=f"{generic_rule['name']} Found",
-                            description=generic_rule["description"],
-                            file_path=file_path,
-                            line_number=line_num,
-                            snippet=f"Line {line_num}: {line.replace(candidate, mask_secret(candidate)).strip()}",
-                            severity=SeverityLevel(generic_rule["severity"]),
-                            confidence=confidence,
-                            remediation=get_secret_remediation(generic_rule["id"]) or generic_rule.get("remediation"),
-                            metadata=meta
-                        ))
-
-            findings.extend(line_findings)
-
+        findings, _ = self.scan_and_extract_content(content, file_path=file_path, include_filtered=False)
         return findings
 
     def scan_file(self, file_path: str) -> List[Finding]:
         """Scans a single local file for hardcoded secrets."""
-        if not os.path.isfile(file_path):
+        content = _read_text_file_safely(file_path, max_bytes=self.max_file_size_bytes)
+        if content is None:
             return []
-        try:
-            with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
-                content = f.read()
-            return self.scan_content(content, file_path=file_path)
-        except Exception:
-            return []
+        return self.scan_content(content, file_path=file_path)

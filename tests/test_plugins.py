@@ -97,7 +97,7 @@ class TestSidikPluginArchitecture(unittest.TestCase):
             self.assertIn("#ea580c", html_out)
             self.assertIn("#f59e0b", html_out)
             self.assertNotIn("Research Edition", html_out)
-            self.assertEqual(sarif_doc["runs"][0]["tool"]["driver"]["version"], "1.3.3")
+            self.assertEqual(sarif_doc["runs"][0]["tool"]["driver"]["version"], "1.3.4")
             sarif_secret_results = [
                 r for r in sarif_doc["runs"][0]["results"]
                 if not r["ruleId"].startswith("SIDIK-SCA-")

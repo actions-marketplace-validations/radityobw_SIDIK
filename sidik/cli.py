@@ -1,14 +1,15 @@
 """Command-line interface (CLI) and Interactive Terminal Console (TUI) for SIDIK."""
 
 import argparse
+import json
 import shlex
 import stat
 import subprocess
 import sys
 import os
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Sequence
 from sidik import __version__ as VERSION
-from sidik.core import SecurityScanner
+from sidik.core import SecurityScanner, load_pyproject_sidik_config
 from sidik.models import ScanReport, Finding
 from sidik.plugins import discover_plugins, get_plugin
 from sidik.reporting.formatter import ReportFormatter
@@ -17,7 +18,19 @@ from sidik.i18n import get_secret_remediation, get_dependency_remediation
 PRE_COMMIT_HOOK_SCRIPT = """#!/bin/sh
 # SIDIK Automated Git Pre-Commit Security Hook
 echo "[SIDIK] Running pre-commit shift-left security scan..."
-python -m sidik.cli --target . --fail-on high --quiet
+if command -v sidik >/dev/null 2>&1; then
+    SIDIK_CMD="sidik"
+elif command -v python3 >/dev/null 2>&1; then
+    SIDIK_CMD="python3 -m sidik.cli"
+else
+    SIDIK_CMD="python -m sidik.cli"
+fi
+STAGED_FILES=$(git diff --cached --name-only --diff-filter=ACMR 2>/dev/null)
+if [ -z "$STAGED_FILES" ]; then
+    exit 0
+fi
+# shellcheck disable=SC2086
+$SIDIK_CMD $STAGED_FILES --fail-on high --quiet
 EXIT_CODE=$?
 if [ $EXIT_CODE -ne 0 ]; then
     echo "[SIDIK] Commit blocked: High/Critical security findings detected. Fix findings or use --no-verify to bypass."
@@ -25,6 +38,125 @@ if [ $EXIT_CODE -ne 0 ]; then
 fi
 exit 0
 """
+
+SEVERITY_ORDER: Dict[str, int] = {
+    "info": 0,
+    "low": 1,
+    "medium": 2,
+    "high": 3,
+    "critical": 4,
+}
+
+
+def apply_severity_filter(report: ScanReport, min_severity: Optional[str]) -> ScanReport:
+    """Filters report findings in-place by minimum severity level and updates summary tallies."""
+    if not min_severity:
+        return report
+    min_rank = SEVERITY_ORDER.get(min_severity.lower(), 1)
+    filtered = [
+        f for f in report.findings
+        if SEVERITY_ORDER.get((f.severity.value if hasattr(f.severity, "value") else str(f.severity)).lower(), 0) >= min_rank
+    ]
+    report.findings = filtered
+    report.summary.total_secrets_found = sum(1 for f in filtered if f.finding_type == "secret")
+    report.summary.total_vulnerabilities_found = sum(1 for f in filtered if f.finding_type == "dependency")
+    return report
+
+
+def apply_baseline_filter(report: ScanReport, baseline_path: Optional[str]) -> ScanReport:
+    """Suppresses findings whose deterministic ID is listed in a JSON baseline file."""
+    if not baseline_path:
+        return report
+    if not os.path.isfile(baseline_path):
+        print(f"Warning: Baseline file not found: {baseline_path}", file=sys.stderr)
+        return report
+    try:
+        with open(baseline_path, "r", encoding="utf-8") as bf:
+            data = json.load(bf)
+        if isinstance(data, dict):
+            ids = data.get("finding_ids", [])
+        elif isinstance(data, list):
+            ids = data
+        else:
+            ids = []
+        suppressed = {str(x) for x in ids}
+    except Exception as exc:
+        print(f"Warning: Failed to read baseline file {baseline_path}: {exc}", file=sys.stderr)
+        return report
+
+    kept = [f for f in report.findings if f.id not in suppressed]
+    report.findings = kept
+    report.summary.total_secrets_found = sum(1 for f in kept if f.finding_type == "secret")
+    report.summary.total_vulnerabilities_found = sum(1 for f in kept if f.finding_type == "dependency")
+    return report
+
+
+def write_baseline_file(report: ScanReport, baseline_path: str) -> None:
+    """Writes current finding IDs to a reproducible JSON baseline file."""
+    out_abs = os.path.abspath(baseline_path)
+    out_dir = os.path.dirname(out_abs)
+    if out_dir:
+        os.makedirs(out_dir, exist_ok=True)
+    payload = {
+        "schema_version": "1.0.0",
+        "sidik_version": VERSION,
+        "finding_ids": sorted({f.id for f in report.findings}),
+    }
+    with open(out_abs, "w", encoding="utf-8") as bf:
+        json.dump(payload, bf, indent=2)
+
+
+def evaluate_fail_on_threshold(findings: Sequence[Finding], fail_on: str) -> int:
+    """Evaluates --fail-on threshold and returns 1 if violated, else 0."""
+    threshold = (fail_on or "any").lower()
+    if threshold == "none":
+        return 0
+    if threshold == "any":
+        return 1 if bool(findings) else 0
+    threshold_rank = SEVERITY_ORDER.get(threshold, 1)
+    for f in findings:
+        sev_str = (f.severity.value if hasattr(f.severity, "value") else str(f.severity)).lower()
+        if SEVERITY_ORDER.get(sev_str, 0) >= threshold_rank:
+            return 1
+    return 0
+
+
+def write_github_step_summary(report: ScanReport, lang: str = "id", disable: bool = False) -> None:
+    """Appends Markdown summary to $GITHUB_STEP_SUMMARY unless disabled."""
+    if disable:
+        return
+    step_summary_path = os.environ.get("GITHUB_STEP_SUMMARY")
+    if step_summary_path:
+        try:
+            with open(step_summary_path, "a", encoding="utf-8") as sf:
+                sf.write(ReportFormatter.to_markdown(report, lang=lang) + "\n")
+        except Exception:
+            pass
+
+
+def _safe_launch_gui(**kwargs: Any) -> int:
+    """Launches the SIDIK Desktop GUI with friendly diagnostics if tkinter or a display is unavailable."""
+    try:
+        from sidik.gui import main as sidik_gui_main
+        sidik_gui_main(**kwargs)
+        return 0
+    except ImportError as exc:
+        print(
+            f"Error: Desktop GUI requires tkinter ({exc}). "
+            "On Linux install python3-tk (e.g., sudo apt install python3-tk), "
+            "or use the interactive CLI with 'sidik -i'.",
+            file=sys.stderr,
+        )
+        return 2
+    except Exception as exc:
+        if "tclerror" in type(exc).__name__.lower() or "display" in str(exc).lower():
+            print(
+                f"Error: Unable to open Desktop GUI window ({exc}). "
+                "Use 'sidik -i' or 'sidik .' in headless environments.",
+                file=sys.stderr,
+            )
+            return 2
+        raise
 
 
 def _enable_windows_ansi() -> None:
@@ -125,6 +257,7 @@ def run_interactive_cli(
     C_ACCENT = C_YELLOW if is_ml_mode else C_CYAN
 
     base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    has_repo_datasets = os.path.isdir(os.path.join(base_dir, "dataset", "secrets", "test"))
     lang = initial_lang
     enable_context = True
     enable_entropy = True
@@ -167,25 +300,39 @@ def run_interactive_cli(
         print(f"{C_ACCENT}║{C_RESET}  Bahasa: {C_BOLD}{lang.upper()}{C_RESET} | Konteks: {ctx_str} | Entropi: {ent_str} | ML Plugin: {ml_str} | Terakhir: {C_YELLOW}{last_str}{C_RESET}")
         print(f"{C_ACCENT}╚════════════════════════════════════════════════════════════════════════════════╝{C_RESET}")
         if lang == "id":
-            print(f"  {C_BOLD}[1]{C_RESET} 🔍 Pindai Folder / Berkas Kustom (Input Path)")
-            print(f"  {C_BOLD}[2]{C_RESET} 📁 Preset: Uji Secrets Terkontrol (N=100 berkas | dataset/secrets/test)")
-            print(f"  {C_BOLD}[3]{C_RESET} 📦 Preset: Uji Dependensi PyPI v2 (N=200 entri  | dataset/dependencies_v2/test)")
-            print(f"  {C_BOLD}[4]{C_RESET} 🌐 Preset: 25 Repo GitHub Eksternal - Secret Only (1.193 berkas .py)")
-            print(f"  {C_BOLD}[5]{C_RESET} 🌐 Preset: 25 Repo GitHub Eksternal - Full Scan (Secret + 45 Manifes)")
-            print(f"  {C_BOLD}[6]{C_RESET} 🛡️  Preset: Audit Kode Sumber Internal SIDIK (sidik/)")
+            if has_repo_datasets:
+                print(f"  {C_BOLD}[1]{C_RESET} 🔍 Pindai Folder / Berkas Kustom (Input Path)")
+                print(f"  {C_BOLD}[2]{C_RESET} 📁 Preset: Uji Secrets Terkontrol (N=100 berkas | dataset/secrets/test)")
+                print(f"  {C_BOLD}[3]{C_RESET} 📦 Preset: Uji Dependensi PyPI v2 (N=200 entri  | dataset/dependencies_v2/test)")
+                print(f"  {C_BOLD}[4]{C_RESET} 🌐 Preset: 25 Repo GitHub Eksternal - Secret Only (1.193 berkas .py)")
+                print(f"  {C_BOLD}[5]{C_RESET} 🌐 Preset: 25 Repo GitHub Eksternal - Full Scan (Secret + 45 Manifes)")
+                print(f"  {C_BOLD}[6]{C_RESET} 🛡️  Preset: Audit Kode Sumber Internal SIDIK (sidik/)")
+            else:
+                print(f"  {C_BOLD}[1]{C_RESET} 📂 Pindai Direktori Saat Ini (.) - Full Scan (Secret + SCA)")
+                print(f"  {C_BOLD}[2]{C_RESET} 🔑 Pindai Direktori Saat Ini (.) - Secret Only")
+                print(f"  {C_BOLD}[3]{C_RESET} 📦 Pindai Direktori Saat Ini (.) - Dependensi / SCA Only")
+                print(f"  {C_BOLD}[4]{C_RESET} 🔍 Pindai Folder / Berkas Kustom (Input Path)")
+                print(f"  {C_BOLD}[5]{C_RESET} 🛡️  Audit Paket Internal SIDIK")
             print(f"  {C_BOLD}[7]{C_RESET} 📋 Aksi Hasil Scan: Salin Semua Kode / Salin Semua Remediasi / Ekspor Laporan")
-            print(f"  {C_BOLD}[8]{C_RESET} ⚙️  Pengaturan: Toggle Konteks/Entropi, Bahasa (ID/EN), Info DB, Pre-Commit Hook")
+            print(f"  {C_BOLD}[8]{C_RESET} ⚙️  Pengaturan: Toggle Konteks/Entropi, Bahasa (ID/EN), Info/Update DB, Git Hook")
             print(f"  {C_BOLD}[9]{C_RESET} 🖥️  Buka Antarmuka Desktop GUI (Windowed Mode)")
             print(f"  {C_BOLD}[0]{C_RESET} 🚪 Keluar  {C_DIM}(atau ketik perintah CLI langsung, misal: --target . --mode secret){C_RESET}")
         else:
-            print(f"  {C_BOLD}[1]{C_RESET} 🔍 Scan Custom Folder / File Path")
-            print(f"  {C_BOLD}[2]{C_RESET} 📁 Preset: Controlled Secret Test Set (N=100 files | dataset/secrets/test)")
-            print(f"  {C_BOLD}[3]{C_RESET} 📦 Preset: PyPI Dependency Benchmark v2 (N=200     | dataset/dependencies_v2/test)")
-            print(f"  {C_BOLD}[4]{C_RESET} 🌐 Preset: 25 External GitHub Repos - Secret Only (1,193 .py files)")
-            print(f"  {C_BOLD}[5]{C_RESET} 🌐 Preset: 25 External GitHub Repos - Full Scan (Secrets + 45 Manifests)")
-            print(f"  {C_BOLD}[6]{C_RESET} 🛡️  Preset: Self-Audit SIDIK Source Code (sidik/)")
+            if has_repo_datasets:
+                print(f"  {C_BOLD}[1]{C_RESET} 🔍 Scan Custom Folder / File Path")
+                print(f"  {C_BOLD}[2]{C_RESET} 📁 Preset: Controlled Secret Test Set (N=100 files | dataset/secrets/test)")
+                print(f"  {C_BOLD}[3]{C_RESET} 📦 Preset: PyPI Dependency Benchmark v2 (N=200     | dataset/dependencies_v2/test)")
+                print(f"  {C_BOLD}[4]{C_RESET} 🌐 Preset: 25 External GitHub Repos - Secret Only (1,193 .py files)")
+                print(f"  {C_BOLD}[5]{C_RESET} 🌐 Preset: 25 External GitHub Repos - Full Scan (Secrets + 45 Manifests)")
+                print(f"  {C_BOLD}[6]{C_RESET} 🛡️  Preset: Self-Audit SIDIK Source Code (sidik/)")
+            else:
+                print(f"  {C_BOLD}[1]{C_RESET} 📂 Scan Current Directory (.) - Full Scan (Secrets + SCA)")
+                print(f"  {C_BOLD}[2]{C_RESET} 🔑 Scan Current Directory (.) - Secrets Only")
+                print(f"  {C_BOLD}[3]{C_RESET} 📦 Scan Current Directory (.) - Dependencies / SCA Only")
+                print(f"  {C_BOLD}[4]{C_RESET} 🔍 Scan Custom Folder / File Path")
+                print(f"  {C_BOLD}[5]{C_RESET} 🛡️  Self-Audit Installed SIDIK Package")
             print(f"  {C_BOLD}[7]{C_RESET} 📋 Post-Scan Actions: Copy All Snippets / Copy All Remediations / Export Report")
-            print(f"  {C_BOLD}[8]{C_RESET} ⚙️  Settings: Toggle Context/Entropy, Language (ID/EN), OSV DB Info, Git Hook")
+            print(f"  {C_BOLD}[8]{C_RESET} ⚙️  Settings: Toggle Context/Entropy, Language (ID/EN), OSV DB Info/Update, Git Hook")
             print(f"  {C_BOLD}[9]{C_RESET} 🖥️  Launch Desktop GUI Window")
             print(f"  {C_BOLD}[0]{C_RESET} 🚪 Exit    {C_DIM}(or type any CLI flags directly, e.g.: --target . --mode secret){C_RESET}")
         print(f"{C_DIM}{'─' * 82}{C_RESET}")
@@ -309,17 +456,34 @@ def run_interactive_cli(
                 os.system("cls" if sys.platform == "win32" else "clear")
             print_banner()
         elif low == "1":
-            t_in = input("  Masukkan path folder/berkas target [default: .]: ").strip() or "."
-            m_in = input("  Pilih mode (all / secret / dep) [default: all]: ").strip().lower() or "all"
-            execute_scan(t_in, sec=(m_in != "dep"), dep=(m_in != "secret"))
+            if has_repo_datasets:
+                t_in = input("  Masukkan path folder/berkas target [default: .]: ").strip() or "."
+                m_in = input("  Pilih mode (all / secret / dep) [default: all]: ").strip().lower() or "all"
+                execute_scan(t_in, sec=(m_in != "dep"), dep=(m_in != "secret"))
+            else:
+                execute_scan(".", sec=True, dep=True)
         elif low == "2":
-            execute_scan(os.path.join(base_dir, "dataset", "secrets", "test"), sec=True, dep=False)
+            if has_repo_datasets:
+                execute_scan(os.path.join(base_dir, "dataset", "secrets", "test"), sec=True, dep=False)
+            else:
+                execute_scan(".", sec=True, dep=False)
         elif low == "3":
-            execute_scan(os.path.join(base_dir, "dataset", "dependencies_v2", "test"), sec=False, dep=True)
+            if has_repo_datasets:
+                execute_scan(os.path.join(base_dir, "dataset", "dependencies_v2", "test"), sec=False, dep=True)
+            else:
+                execute_scan(".", sec=False, dep=True)
         elif low == "4":
-            execute_scan(os.path.join(base_dir, "dataset", "external", "_repos"), sec=True, dep=False)
+            if has_repo_datasets:
+                execute_scan(os.path.join(base_dir, "dataset", "external", "_repos"), sec=True, dep=False)
+            else:
+                t_in = input("  Masukkan path folder/berkas target [default: .]: ").strip() or "."
+                m_in = input("  Pilih mode (all / secret / dep) [default: all]: ").strip().lower() or "all"
+                execute_scan(t_in, sec=(m_in != "dep"), dep=(m_in != "secret"))
         elif low == "5":
-            execute_scan(os.path.join(base_dir, "dataset", "external", "_repos"), sec=True, dep=True)
+            if has_repo_datasets:
+                execute_scan(os.path.join(base_dir, "dataset", "external", "_repos"), sec=True, dep=True)
+            else:
+                execute_scan(os.path.dirname(os.path.abspath(__file__)), sec=True, dep=True)
         elif low == "6":
             execute_scan(os.path.dirname(os.path.abspath(__file__)), sec=True, dep=True)
         elif low == "7":
@@ -364,7 +528,12 @@ def run_interactive_cli(
                 db = VulnerabilityDatabase()
                 print(f"  • Total Advisori OSV : {db.advisory_count}")
                 print(f"  • Total Paket PyPI   : {db.package_count}")
-                print(f"  • Sumber Basis Data  : {db.metadata.get('source', 'OSV PyPI')}")
+                print(f"  • Lokasi Aktif       : {db.active_db_source}")
+                print(f"  • Snapshot UTC       : {db.metadata.get('generated_utc', 'N/A')}")
+                upd = input("  Perbarui DB OSV ke cache pengguna sekarang? [y/N]: ").strip().lower()
+                if upd == "y":
+                    from sidik.dependency_analyzer import osv_import
+                    osv_import.main([])
             elif sub == "e":
                 install_git_hook(".")
             elif sub == "f" and ml_plugin is not None:
@@ -386,14 +555,15 @@ def run_interactive_cli(
                 print(f"{C_GREEN}[OK] Ambang={cur_ml_threshold:.2f}, Supresi FP non-CRITICAL={'ON' if cur_ml_suppress else 'OFF'}{C_RESET}")
         elif low == "9":
             print(f"{C_CYAN}[*] Membuka jendela Desktop GUI SIDIK...{C_RESET}")
-            from sidik.gui import main as gui_main
-            gui_main(
+            _safe_launch_gui(
                 enable_ml=ml_enabled,
                 ml_model_path=cur_ml_model,
                 ml_sha256=cur_ml_sha256,
                 ml_threshold=cur_ml_threshold,
                 ml_suppress_fp=cur_ml_suppress,
                 app_brand=banner_title,
+                initial_target=os.getcwd(),
+                initial_lang=lang,
             )
         elif low == "copy code":
             copy_all_items("code")
@@ -470,7 +640,7 @@ def build_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--mode", "-m",
         choices=["all", "secret", "secrets", "dep", "deps", "dependency", "dependencies"],
-        default="all",
+        default=None,
         help="Scan mode: all (default), secret (secret scan only), or dep/dependency (dependency scan only)"
     )
     parser.add_argument(
@@ -482,6 +652,27 @@ def build_arg_parser() -> argparse.ArgumentParser:
         "--dep-only",
         action="store_true",
         help="Perform dependency vulnerability scan only"
+    )
+    parser.add_argument(
+        "--extensions",
+        default=None,
+        help="Comma-separated file extensions for secret scanning (e.g., '.py,.env,.json')"
+    )
+    parser.add_argument(
+        "--exclude",
+        action="append",
+        default=[],
+        help="Additional gitignore-style glob pattern to exclude (repeatable)"
+    )
+    parser.add_argument(
+        "--baseline",
+        default=None,
+        help="Path to JSON baseline file of known finding IDs to suppress"
+    )
+    parser.add_argument(
+        "--write-baseline",
+        default=None,
+        help="Write current finding IDs to a JSON baseline file"
     )
     parser.add_argument(
         "--no-context",
@@ -508,8 +699,18 @@ def build_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--fail-on",
         choices=["none", "any", "low", "medium", "high", "critical"],
-        default="any",
+        default=None,
         help="Exit code 1 threshold: none, any, low, medium, high, or critical (default: any)"
+    )
+    parser.add_argument(
+        "--sarif-output",
+        default=None,
+        help="Optional secondary path to also write OASIS SARIF v2.1.0 JSON in the same scan"
+    )
+    parser.add_argument(
+        "--no-step-summary",
+        action="store_true",
+        help="Do not append Markdown summary to $GITHUB_STEP_SUMMARY"
     )
     parser.add_argument(
         "--quiet", "-q",
@@ -610,18 +811,18 @@ def run_cli_with_args(argv: Optional[List[str]] = None, exit_on_finish: bool = T
         return code
 
     if args.gui:
-        from sidik.gui import main as sidik_gui_main
-        sidik_gui_main(
+        code = _safe_launch_gui(
             enable_ml=ml_flag,
             ml_model_path=args.ml_model,
             ml_sha256=args.ml_sha256,
             ml_threshold=args.ml_threshold,
             ml_suppress_fp=args.ml_suppress_fp,
             app_brand="SIDIK-ML" if ml_flag else "SIDIK",
+            initial_lang=args.lang,
         )
         if exit_on_finish:
-            sys.exit(0)
-        return 0
+            sys.exit(code)
+        return code
 
     if args.list_plugins:
         plugins = discover_plugins()
@@ -636,7 +837,8 @@ def run_cli_with_args(argv: Optional[List[str]] = None, exit_on_finish: bool = T
 
     if args.update_db:
         from sidik.dependency_analyzer import osv_import
-        code = osv_import.main([])
+        update_argv = ["--output", args.db] if args.db else []
+        code = osv_import.main(update_argv)
         if exit_on_finish:
             sys.exit(code)
         return code
@@ -646,28 +848,37 @@ def run_cli_with_args(argv: Optional[List[str]] = None, exit_on_finish: bool = T
         db = VulnerabilityDatabase(args.db)
         print(f"Advisories : {db.advisory_count}")
         print(f"Packages   : {db.package_count}")
+        print(f"Location   : {db.active_db_source}")
         print(f"Source     : {db.metadata.get('source', 'built-in only')}")
-        print(f"Snapshot   : {db.metadata.get('generated_utc', 'N/A')}")
+        snap_utc = db.metadata.get("generated_utc", "N/A")
+        age_days = db.snapshot_age_days()
+        age_note = f" ({age_days} days ago)" if age_days is not None else ""
+        print(f"Snapshot   : {snap_utc}{age_note}")
+        if age_days is not None and age_days > 60 and not args.db:
+            print("Tip: Snapshot is over 60 days old. Run 'sidik --update-db' to refresh advisories.")
         if exit_on_finish:
             sys.exit(0)
         return 0
 
-    # Resolve positional target (supports `sidik .` or `sidik scan .`)
-    target_path = args.target
-    if not target_path and args.positional_target:
-        pos = list(args.positional_target)
-        if pos[0].lower() == "scan":
-            pos = pos[1:]
-        target_path = pos[0] if pos else "."
+    # Resolve positional targets (supports `sidik .`, `sidik scan .`, or multiple staged paths)
+    pos = list(args.positional_target)
+    if pos and pos[0].lower() == "scan":
+        pos = pos[1:]
+
+    target_paths: List[str] = []
+    if args.target:
+        target_paths = [args.target]
+    elif pos:
+        target_paths = pos
 
     if args.install_hook:
-        code = install_git_hook(target_path or ".")
+        code = install_git_hook(target_paths[0] if target_paths else ".")
         if exit_on_finish:
             sys.exit(code)
         return code
 
     # If invoked with zero arguments in an interactive terminal, launch the Interactive CLI Console!
-    if not target_path:
+    if not target_paths:
         if sys.stdin.isatty() and sys.stdout.isatty() and exit_on_finish:
             code = run_interactive_cli(
                 initial_lang=args.lang,
@@ -680,24 +891,39 @@ def run_cli_with_args(argv: Optional[List[str]] = None, exit_on_finish: bool = T
             sys.exit(code)
         parser.error("Target path is required (e.g., 'sidik .' or 'sidik --target <path>' or 'sidik -i')")
 
-    if not os.path.exists(target_path):
-        print(f"Error: Target path '{target_path}' does not exist.", file=sys.stderr)
-        if exit_on_finish:
-            sys.exit(2)
-        return 2
+    for tp in target_paths:
+        if not os.path.exists(tp):
+            print(f"Error: Target path '{tp}' does not exist.", file=sys.stderr)
+            if exit_on_finish:
+                sys.exit(2)
+            return 2
 
     active_plugins = []
     if args.plugin or args.enable_ml:
         req_plugin = args.plugin or "sidik-ml"
         plug = get_plugin(req_plugin)
         if plug is None:
-            print(f"Error: Plugin '{req_plugin}' is not installed. Install it (e.g., pip install sidik-ml).", file=sys.stderr)
+            print(f"Error: Plugin '{req_plugin}' is not installed.", file=sys.stderr)
             if exit_on_finish:
                 sys.exit(2)
             return 2
         active_plugins.append(plug)
 
-    mode_val = (args.mode or "all").lower()
+    cfg_base = target_paths[0] if os.path.isdir(target_paths[0]) else os.path.dirname(os.path.abspath(target_paths[0]))
+    proj_cfg = load_pyproject_sidik_config(cfg_base)
+
+    ext_spec = args.extensions or (
+        ",".join(proj_cfg["extensions"]) if isinstance(proj_cfg.get("extensions"), list) else proj_cfg.get("extensions")
+    )
+    parsed_extensions = None
+    if isinstance(ext_spec, str) and ext_spec.strip():
+        parsed_extensions = tuple(
+            e.strip() if e.strip().startswith(".") else f".{e.strip()}"
+            for e in ext_spec.split(",")
+            if e.strip()
+        )
+
+    mode_val = (args.mode or str(proj_cfg.get("mode", "all"))).lower()
     is_secret_only = args.secret_only or mode_val in ("secret", "secrets")
     is_dep_only = args.dep_only or mode_val in ("dep", "deps", "dependency", "dependencies")
 
@@ -707,6 +933,8 @@ def run_cli_with_args(argv: Optional[List[str]] = None, exit_on_finish: bool = T
         enable_context=not args.no_context,
         enable_entropy=not args.no_entropy,
         custom_vulnerability_db=args.db,
+        ignore_patterns=list(args.exclude) if args.exclude else None,
+        secret_extensions=parsed_extensions,
         measure_memory=True,
         post_scan_plugins=active_plugins,
         plugin_options={
@@ -732,32 +960,26 @@ def run_cli_with_args(argv: Optional[List[str]] = None, exit_on_finish: bool = T
         sys.stdout.write(f"\r\033[K[*] {label} [{bar}] {pct:5.1f}% ({current}/{total}) {fname}")
         sys.stdout.flush()
 
-    report = scanner.scan_path(target_path, progress_callback=cli_progress)
+    report = scanner.scan_paths(target_paths, progress_callback=cli_progress)
 
     if not args.quiet and args.format == "console" and sys.stdout.isatty():
         sys.stdout.write("\r\033[K")
         sys.stdout.flush()
 
-    SEVERITY_ORDER = {
-        "info": 0,
-        "low": 1,
-        "medium": 2,
-        "high": 3,
-        "critical": 4,
-    }
+    # Optional minimum severity filtering (--severity or [tool.sidik].severity)
+    eff_severity = args.severity or (str(proj_cfg["severity"]) if proj_cfg.get("severity") else None)
+    apply_severity_filter(report, eff_severity)
 
-    # Optional minimum severity filtering (--severity)
-    if args.severity:
-        min_rank = SEVERITY_ORDER.get(args.severity.lower(), 1)
-        filtered = [
-            f for f in report.findings
-            if SEVERITY_ORDER.get((f.severity.value if hasattr(f.severity, "value") else str(f.severity)).lower(), 0) >= min_rank
-        ]
-        report.findings = filtered
-        report.summary.total_secrets_found = sum(1 for f in filtered if f.finding_type == "secret")
-        report.summary.total_vulnerabilities_found = sum(1 for f in filtered if f.finding_type == "dependency")
+    # Optional JSON baseline filtering (--baseline or [tool.sidik].baseline)
+    eff_baseline = args.baseline or (str(proj_cfg["baseline"]) if proj_cfg.get("baseline") else None)
+    apply_baseline_filter(report, eff_baseline)
 
-    # Format output
+    if args.write_baseline:
+        write_baseline_file(report, args.write_baseline)
+        if not args.quiet:
+            print(f"Baseline written ({len(report.findings)} findings): {args.write_baseline}", file=sys.stderr)
+
+    # Format primary output
     if args.format == "json":
         output_text = ReportFormatter.to_json(report)
     elif args.format == "markdown":
@@ -773,6 +995,13 @@ def run_cli_with_args(argv: Optional[List[str]] = None, exit_on_finish: bool = T
     else:
         output_text = ReportFormatter.to_console_summary(report, lang=args.lang, use_color=not args.no_color)
 
+    if args.sarif_output:
+        sarif_dir = os.path.dirname(os.path.abspath(args.sarif_output))
+        if sarif_dir:
+            os.makedirs(sarif_dir, exist_ok=True)
+        with open(args.sarif_output, "w", encoding="utf-8") as sf:
+            sf.write(ReportFormatter.to_sarif(report))
+
     if args.output:
         out_dir = os.path.dirname(os.path.abspath(args.output))
         if out_dir:
@@ -785,34 +1014,38 @@ def run_cli_with_args(argv: Optional[List[str]] = None, exit_on_finish: bool = T
         print(output_text)
 
     # Automatic GitHub Actions Job Summary ($GITHUB_STEP_SUMMARY)
-    step_summary_path = os.environ.get("GITHUB_STEP_SUMMARY")
-    if step_summary_path:
-        try:
-            with open(step_summary_path, "a", encoding="utf-8") as sf:
-                sf.write(ReportFormatter.to_markdown(report, lang=args.lang) + "\n")
-        except Exception:
-            pass
+    write_github_step_summary(report, lang=args.lang, disable=args.no_step_summary)
 
     # Determine exit code based on --fail-on threshold
-    fail_on = args.fail_on.lower()
-    has_failure = False
-
-    if fail_on == "none":
-        has_failure = False
-    elif fail_on == "any":
-        has_failure = bool(report.findings)
-    else:
-        threshold_rank = SEVERITY_ORDER.get(fail_on, 1)
-        for f in report.findings:
-            sev_str = (f.severity.value if hasattr(f.severity, "value") else str(f.severity)).lower()
-            if SEVERITY_ORDER.get(sev_str, 0) >= threshold_rank:
-                has_failure = True
-                break
-
-    code = 1 if has_failure else 0
+    fail_on = (args.fail_on or str(proj_cfg.get("fail_on", "any"))).lower()
+    code = evaluate_fail_on_threshold(report.findings, fail_on)
     if exit_on_finish:
         sys.exit(code)
     return code
+
+
+def launch_gui_cli(argv: Optional[List[str]] = None) -> int:
+    """Dedicated argparse entry point for ``sidik-gui``."""
+    parser = argparse.ArgumentParser(prog="sidik-gui", description="Launch SIDIK Desktop GUI")
+    parser.add_argument("--version", "-v", action="version", version=f"SIDIK v{VERSION} (Desktop GUI)")
+    parser.add_argument("--lang", choices=["id", "en"], default="id", help="Initial GUI language (default: id)")
+    parser.add_argument("--target", "-t", default=None, help="Initial target directory or file")
+    parser.add_argument("--enable-ml", action="store_true", help="Enable optional ML plugin if installed")
+    parser.add_argument("--ml-model", default=None, help="Path to verified .skops model artifact")
+    parser.add_argument("--ml-sha256", default=None, help="Expected SHA-256 checksum for --ml-model")
+    parser.add_argument("--ml-threshold", type=float, default=0.5, help="Probability threshold for ML triage")
+    parser.add_argument("--ml-suppress-fp", action="store_true", help="Suppress non-CRITICAL ML false positives")
+    args = parser.parse_args(argv)
+    return _safe_launch_gui(
+        enable_ml=args.enable_ml,
+        ml_model_path=args.ml_model,
+        ml_sha256=args.ml_sha256,
+        ml_threshold=args.ml_threshold,
+        ml_suppress_fp=args.ml_suppress_fp,
+        app_brand="SIDIK-ML" if args.enable_ml else "SIDIK",
+        initial_target=args.target,
+        initial_lang=args.lang,
+    )
 
 
 def main():

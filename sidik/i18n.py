@@ -45,8 +45,8 @@ TRANSLATIONS: Dict[str, Dict[str, str]] = {
         "en": "- Explainable Non-ANN ML False Positive Reduction (Python)"
     },
     "app_version": {
-        "id": "v1.3.3 (Deterministic Edition)",
-        "en": "v1.3.3 (Deterministic Edition)"
+        "id": "v1.3.4 (Deterministic Edition)",
+        "en": "v1.3.4 (Deterministic Edition)"
     },
     "lang_toggle_btn": {
         "id": "English (EN)",
@@ -150,6 +150,18 @@ TRANSLATIONS: Dict[str, Dict[str, str]] = {
     },
 
     # Quick Presets
+    "preset_cwd": {
+        "id": "📂 Direktori Saat Ini (Full)",
+        "en": "📂 Current Directory (Full)"
+    },
+    "preset_cwd_sec": {
+        "id": "🔑 Direktori Saat Ini (Secret)",
+        "en": "🔑 Current Directory (Secrets)"
+    },
+    "preset_cwd_dep": {
+        "id": "📦 Direktori Saat Ini (SCA)",
+        "en": "📦 Current Directory (SCA)"
+    },
     "preset_secrets": {
         "id": "📁 Uji Secrets (N=100)",
         "en": "📁 Test Secrets (N=100)"
@@ -421,6 +433,14 @@ TRANSLATIONS: Dict[str, Dict[str, str]] = {
     "dialog_export_open_html_prompt": {
         "id": "Buka dasbor HTML di browser sekarang?",
         "en": "Open the HTML dashboard in your browser now?"
+    },
+    "dialog_missing_matplotlib_title": {
+        "id": "Fitur Grafik Memerlukan Matplotlib",
+        "en": "Matplotlib Required for Chart Export"
+    },
+    "dialog_missing_matplotlib_body": {
+        "id": "Paket 'matplotlib' belum terpasang di lingkungan Python ini.\nPasang komponen GUI lengkap dengan:\npip install \"sidik[gui]\"",
+        "en": "'matplotlib' is not installed in this Python environment.\nInstall full GUI visualization support with:\npip install \"sidik[gui]\""
     },
 
     # Research Tab (Tab 2)

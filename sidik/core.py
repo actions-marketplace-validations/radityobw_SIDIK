@@ -7,10 +7,42 @@ import tracemalloc
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 from sidik.models import ScanReport, SecretCandidate
 from sidik.plugins import apply_post_scan_plugins
-from sidik.secret_detector.detector import SecretDetector
-from sidik.dependency_analyzer.analyzer import DependencyAnalyzer, MANIFEST_FILENAMES
+from sidik.secret_detector.detector import DEFAULT_MAX_FILE_SIZE_BYTES, SecretDetector
+from sidik.dependency_analyzer.analyzer import DependencyAnalyzer, is_manifest_file
 from sidik.dependency_analyzer.database import VulnerabilityDatabase
 from sidik.reporting.aggregator import FindingAggregator
+
+try:
+    import tomllib
+except ModuleNotFoundError:  # pragma: no cover - Python < 3.11 fallback
+    import tomli as tomllib  # type: ignore[no-redef]
+
+DEFAULT_SECRET_EXTENSIONS: Tuple[str, ...] = (".py", ".env", ".yaml", ".yml", ".toml", ".ini", ".cfg")
+LOCKFILE_NAMES = {"poetry.lock", "pipfile.lock", "uv.lock", "package-lock.json", "yarn.lock"}
+
+
+def load_pyproject_sidik_config(base_dir: str) -> Dict[str, Any]:
+    """Loads optional [tool.sidik] configuration table from pyproject.toml in base_dir."""
+    pyproject_path = os.path.join(base_dir, "pyproject.toml")
+    if not os.path.isfile(pyproject_path):
+        return {}
+    try:
+        with open(pyproject_path, "rb") as f:
+            data = tomllib.load(f)
+        cfg = data.get("tool", {}).get("sidik", {})
+        return dict(cfg) if isinstance(cfg, dict) else {}
+    except Exception:
+        return {}
+
+
+def is_secret_candidate_filename(filename: str, secret_extensions: Tuple[str, ...]) -> bool:
+    """Returns True when filename should be scanned for hardcoded secrets."""
+    f_lower = filename.lower()
+    if f_lower in LOCKFILE_NAMES:
+        return False
+    if f_lower == ".env" or f_lower.startswith(".env."):
+        return True
+    return f_lower.endswith(secret_extensions)
 
 
 def load_sidikignore_patterns(base_dir: str) -> List[str]:
@@ -85,37 +117,41 @@ class SecurityScanner:
         ignore_patterns: Optional[List[str]] = None,
         measure_memory: bool = False,
         secret_extensions: Optional[Tuple[str, ...]] = None,
+        max_file_size_bytes: int = DEFAULT_MAX_FILE_SIZE_BYTES,
         post_scan_plugins: Optional[Sequence[Any]] = None,
         plugin_options: Optional[Dict[str, Any]] = None,
     ):
         self.enable_secret_scan = enable_secret_scan
         self.enable_dependency_scan = enable_dependency_scan
-        self.secret_detector = SecretDetector(enable_context=enable_context, enable_entropy=enable_entropy)
+        self.secret_detector = SecretDetector(
+            enable_context=enable_context,
+            enable_entropy=enable_entropy,
+            max_file_size_bytes=max_file_size_bytes,
+        )
         db = VulnerabilityDatabase(custom_vulnerability_db) if custom_vulnerability_db else None
         self.dependency_analyzer = DependencyAnalyzer(db=db)
         self.custom_ignore_patterns = list(ignore_patterns) if ignore_patterns else []
         self.measure_memory = measure_memory
-        self.secret_extensions = secret_extensions or (".py", ".env")
+        self.secret_extensions = secret_extensions or DEFAULT_SECRET_EXTENSIONS
         self.post_scan_plugins = list(post_scan_plugins) if post_scan_plugins else []
         self.plugin_options = dict(plugin_options) if plugin_options else {}
 
     def _discover_candidate_files(self, target_path: str) -> List[Tuple[str, str, bool, bool]]:
-        """Discovers target files for secret and/or dependency scanning honoring .sidikignore."""
+        """Discovers target files for secret and/or dependency scanning honoring .sidikignore and [tool.sidik]."""
         base_dir = target_path if os.path.isdir(target_path) else os.path.dirname(target_path)
         file_ignore_patterns = load_sidikignore_patterns(base_dir)
-        all_ignore_patterns = list(self.custom_ignore_patterns) + file_ignore_patterns
+        cfg = load_pyproject_sidik_config(base_dir)
+        cfg_excludes = [str(p) for p in cfg.get("exclude", []) if isinstance(p, str)] if isinstance(cfg.get("exclude"), list) else []
+        all_ignore_patterns = list(self.custom_ignore_patterns) + cfg_excludes + file_ignore_patterns
 
         candidate_files: List[Tuple[str, str, bool, bool]] = []
 
         if os.path.isfile(target_path):
             filename = os.path.basename(target_path).lower()
             if not is_path_ignored(os.path.basename(target_path), all_ignore_patterns):
-                is_sec = self.enable_secret_scan and filename.endswith(
-                    (".py", ".env", ".cfg", ".ini", ".json", ".yaml", ".yml", ".txt")
-                )
-                is_dep = self.enable_dependency_scan and any(
-                    filename == m.lower() or filename.endswith("requirements.txt") for m in MANIFEST_FILENAMES
-                )
+                single_exts = tuple(dict.fromkeys((*self.secret_extensions, ".cfg", ".ini", ".json", ".yaml", ".yml", ".txt")))
+                is_sec = self.enable_secret_scan and is_secret_candidate_filename(filename, single_exts)
+                is_dep = self.enable_dependency_scan and is_manifest_file(target_path)
                 if is_sec or is_dep:
                     candidate_files.append((target_path, os.path.basename(target_path), is_sec, is_dep))
                 else:
@@ -148,34 +184,24 @@ class SecurityScanner:
                         ]
 
                 for f in files:
-                    f_lower = f.lower()
                     full_path = os.path.join(root, f)
                     rel_name = os.path.relpath(full_path, target_path)
                     if local_ignores and is_path_ignored(rel_name, local_ignores):
                         continue
-                    is_sec = self.enable_secret_scan and f_lower.endswith(self.secret_extensions)
-                    is_dep = self.enable_dependency_scan and any(
-                        f_lower == m.lower() or f_lower.endswith("requirements.txt") for m in MANIFEST_FILENAMES
-                    )
+                    is_sec = self.enable_secret_scan and is_secret_candidate_filename(f, self.secret_extensions)
+                    is_dep = self.enable_dependency_scan and is_manifest_file(full_path)
                     if is_sec or is_dep:
                         candidate_files.append((full_path, rel_name, is_sec, is_dep))
 
         return candidate_files
 
-    def scan_path(
+    def _scan_candidate_list(
         self,
-        target_path: str,
-        progress_callback: Optional[Callable[[int, int, str], None]] = None
+        display_target: str,
+        candidate_files: List[Tuple[str, str, bool, bool]],
+        progress_callback: Optional[Callable[[int, int, str], None]] = None,
     ) -> ScanReport:
-        """Executes unified security scan against a file or directory path.
-
-        Args:
-            target_path: Path to file or directory to scan.
-            progress_callback: Optional callback invoked as `progress_callback(current_idx, total_count, rel_filepath)`
-                               to report real-time scanning progress.
-        """
-        target_path = os.path.abspath(target_path)
-        aggregator = FindingAggregator(target_path=target_path)
+        aggregator = FindingAggregator(target_path=display_target)
 
         # Pre-warm vulnerability database index outside optional tracemalloc measurement
         if self.enable_dependency_scan:
@@ -188,8 +214,9 @@ class SecurityScanner:
 
         start_time = time.perf_counter()
         files_scanned = 0
-        candidate_files = self._discover_candidate_files(target_path)
         total_files = len(candidate_files)
+        use_single_pass_plugins = bool(self.post_scan_plugins)
+        preextracted_candidates: List[SecretCandidate] = []
 
         try:
             for idx, (full_path, rel_name, is_sec, is_dep) in enumerate(candidate_files, 1):
@@ -200,7 +227,11 @@ class SecurityScanner:
 
                 # Secret scanning for code/config files
                 if is_sec:
-                    findings = self.secret_detector.scan_file(full_path)
+                    if use_single_pass_plugins:
+                        findings, cands = self.secret_detector.scan_and_extract_file(full_path, include_filtered=True)
+                        preextracted_candidates.extend(cands)
+                    else:
+                        findings = self.secret_detector.scan_file(full_path)
                     aggregator.add_findings(findings)
                     scanned_this_file = True
 
@@ -225,14 +256,60 @@ class SecurityScanner:
         peak_mb = peak_mem_bytes / (1024 * 1024)
         report = aggregator.build_report(duration_seconds=duration, peak_memory_mb=peak_mb)
         if self.post_scan_plugins:
+            opts = dict(self.plugin_options)
+            opts["_preextracted_candidates"] = preextracted_candidates
             report = apply_post_scan_plugins(
                 self,
-                target_path,
+                display_target,
                 report,
                 plugins=self.post_scan_plugins,
-                options=self.plugin_options,
+                options=opts,
             )
         return report
+
+    def scan_path(
+        self,
+        target_path: str,
+        progress_callback: Optional[Callable[[int, int, str], None]] = None
+    ) -> ScanReport:
+        """Executes unified security scan against a file or directory path.
+
+        Args:
+            target_path: Path to file or directory to scan.
+            progress_callback: Optional callback invoked as `progress_callback(current_idx, total_count, rel_filepath)`
+                               to report real-time scanning progress.
+        """
+        target_path = os.path.abspath(target_path)
+        candidate_files = self._discover_candidate_files(target_path)
+        return self._scan_candidate_list(target_path, candidate_files, progress_callback=progress_callback)
+
+    def scan_paths(
+        self,
+        target_paths: Sequence[str],
+        progress_callback: Optional[Callable[[int, int, str], None]] = None,
+    ) -> ScanReport:
+        """Executes unified security scan across multiple files or directories."""
+        abs_targets = [os.path.abspath(p) for p in target_paths if p]
+        if not abs_targets:
+            return self.scan_path(".", progress_callback=progress_callback)
+        if len(abs_targets) == 1:
+            return self.scan_path(abs_targets[0], progress_callback=progress_callback)
+
+        common_root = os.path.commonpath(abs_targets)
+        seen_paths = set()
+        combined: List[Tuple[str, str, bool, bool]] = []
+        for tpath in abs_targets:
+            for full_path, _rel, is_sec, is_dep in self._discover_candidate_files(tpath):
+                norm_full = os.path.normcase(os.path.abspath(full_path))
+                if norm_full in seen_paths:
+                    continue
+                seen_paths.add(norm_full)
+                try:
+                    rel_display = os.path.relpath(full_path, common_root)
+                except ValueError:
+                    rel_display = full_path
+                combined.append((full_path, rel_display, is_sec, is_dep))
+        return self._scan_candidate_list(common_root, combined, progress_callback=progress_callback)
 
     def extract_secret_candidates(
         self,

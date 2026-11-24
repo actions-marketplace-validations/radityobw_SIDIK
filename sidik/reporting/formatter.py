@@ -46,6 +46,46 @@ def _format_ml_triage_summary(ml_meta: Dict[str, Any]) -> str:
     return summary
 
 
+def _resolve_repo_root(base_dir: str, explicit_root: Optional[str] = None) -> str:
+    """Resolves the repository root for SARIF/GitHub relative URIs when scanning subdirectories."""
+    if explicit_root:
+        return os.path.abspath(explicit_root)
+
+    abs_base = os.path.abspath(base_dir) if os.path.exists(base_dir) else ""
+    gh_ws = os.environ.get("GITHUB_WORKSPACE", "").strip()
+    if gh_ws and abs_base and os.path.isdir(gh_ws):
+        abs_ws = os.path.abspath(gh_ws)
+        try:
+            if os.path.commonpath([abs_base, abs_ws]) == abs_ws:
+                return abs_ws
+        except ValueError:
+            pass
+
+    if abs_base:
+        cur = abs_base if os.path.isdir(abs_base) else os.path.dirname(abs_base)
+        while cur:
+            if os.path.exists(os.path.join(cur, ".git")):
+                return cur
+            parent = os.path.dirname(cur)
+            if parent == cur:
+                break
+            cur = parent
+
+    return base_dir
+
+
+def _to_repo_relative_uri(file_path: str, base_dir: str, root_dir: str) -> str:
+    """Computes a clean forward-slash relative path for SARIF and GitHub annotations."""
+    for candidate_root in (root_dir, base_dir):
+        try:
+            rel_uri = os.path.relpath(file_path, candidate_root).replace("\\", "/")
+            if not rel_uri.startswith(".."):
+                return rel_uri
+        except Exception:
+            continue
+    return os.path.basename(file_path) if "/" in file_path.replace("\\", "/") else file_path.replace("\\", "/")
+
+
 class ReportFormatter:
     """Renders ScanReport into various output formats: JSON, Markdown, CSV, and Modern Console."""
 
@@ -206,7 +246,7 @@ class ReportFormatter:
         return "\n".join(md)
 
     @staticmethod
-    def to_sarif(report: ScanReport) -> str:
+    def to_sarif(report: ScanReport, repo_root: Optional[str] = None) -> str:
         """Formats report as OASIS SARIF v2.1.0 JSON for GitHub Code Scanning / Security tab integration."""
         from sidik import __version__ as SIDIK_VERSION
 
@@ -216,6 +256,7 @@ class ReportFormatter:
         base_dir = report.summary.target_path
         if os.path.isfile(base_dir):
             base_dir = os.path.dirname(base_dir)
+        resolved_root = _resolve_repo_root(base_dir, explicit_root=repo_root)
 
         sev_to_sarif = {
             "CRITICAL": ("error", "9.5"),
@@ -253,12 +294,7 @@ class ReportFormatter:
                     }
                 }
 
-            try:
-                rel_uri = os.path.relpath(f.file_path, base_dir).replace("\\", "/")
-                if rel_uri.startswith(".."):
-                    rel_uri = os.path.basename(f.file_path)
-            except Exception:
-                rel_uri = f.file_path.replace("\\", "/")
+            rel_uri = _to_repo_relative_uri(f.file_path, base_dir, resolved_root)
 
             line_no = max(1, int(f.line_number or 1))
             msg_text = f"{f.title}: {f.description}"
@@ -310,24 +346,20 @@ class ReportFormatter:
         return json.dumps(sarif_doc, indent=2)
 
     @staticmethod
-    def to_github_annotations(report: ScanReport, lang: str = "id") -> str:
+    def to_github_annotations(report: ScanReport, lang: str = "id", repo_root: Optional[str] = None) -> str:
         """Formats findings as GitHub Actions workflow commands (::error / ::warning) for inline PR annotations."""
         from sidik import __version__ as SIDIK_VERSION
         from sidik.i18n import get_secret_remediation, get_dependency_remediation
         base_dir = report.summary.target_path
         if os.path.isfile(base_dir):
             base_dir = os.path.dirname(base_dir)
+        resolved_root = _resolve_repo_root(base_dir, explicit_root=repo_root)
 
         out_lines = []
         for f in report.findings:
             sev_val = (f.severity.value if hasattr(f.severity, "value") else str(f.severity)).upper()
             cmd = "error" if sev_val in ("CRITICAL", "HIGH") else ("warning" if sev_val == "MEDIUM" else "notice")
-            try:
-                rel_file = os.path.relpath(f.file_path, base_dir).replace("\\", "/")
-                if rel_file.startswith(".."):
-                    rel_file = f.file_path.replace("\\", "/")
-            except Exception:
-                rel_file = f.file_path.replace("\\", "/")
+            rel_file = _to_repo_relative_uri(f.file_path, base_dir, resolved_root)
 
             line_no = max(1, int(f.line_number or 1))
             rem = f.remediation or ""

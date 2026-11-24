@@ -2,6 +2,16 @@
 
 Seluruh perubahan penting pada paket `sidik` (sebelumnya `sidik-security`) didokumentasikan pada berkas ini.
 
+## [1.3.4] - 2026-11-25
+
+### Ditambahkan & Ditingkatkan (PyPI Global DX & Hardening)
+- **Penyimpanan *User Cache* untuk DB OSV & Grafik GUI:** `sidik --update-db` (`sidik/dependency_analyzer/osv_import.py`) dan `VulnerabilityDatabase` (`sidik/dependency_analyzer/database.py`) kini menyimpan serta memprioritaskan basis data OSV di direktori *cache* pengguna (`~/.cache/sidik` / `%LOCALAPPDATA%\sidik` / `SIDIK_CACHE_DIR`), dilengkapi fungsi `snapshot_age_days()` dan pengingat kesegaran data pada `--db-info` tanpa menulis ke `site-packages/`.
+- **Cakupan Deteksi *Secret* & SCA Diperluas:** Pindai direktori kini mendukung `.env.*` dan berkas konfigurasi (`.yaml`, `.yml`, `.toml`, `.ini`, `.cfg`), melewati berkas *lockfile*, berkas >5 MB, serta berkas biner (NUL-*byte*). Mesin SCA kini mendukung `Pipfile.lock`, `uv.lock`, `requirements-*.txt`, `requirements/*.txt`, `[project.optional-dependencies]`, dan PEP 735 `[dependency-groups]`.
+- **Ekstraksi Sekali Jalan (*Single-Pass*):** `SecretDetector.scan_and_extract_content()` dan `SecurityScanner` mengekstrak `SecretCandidate` dalam satu kali pembacaan berkas saat *plugin* aktif, serta mendukung pemindaian multi-target `scan_paths()`.
+- **Fitur CLI & Konfigurasi Proyek:** Menambahkan `--extensions`, `--exclude`, `--baseline`, `--write-baseline`, `--sarif-output` (satu kali pindai untuk *annotations* + SARIF), `--no-step-summary`, dukungan `[tool.sidik]` pada `pyproject.toml`, *entry point* `sidik-gui` berbasis `argparse` (`--help`/`--version`), serta diagnosa ramah saat `tkinter` tidak tersedia.
+- **Kesiapan GUI Global & Integritas Ilmiah Grafik:** *Default target* GUI dan *preset* awal kini mengarah ke `os.getcwd()`, *preset* korpus riset hanya tampil pada *source checkout*, tombol *Simpan Grafik* memulihkan status beserta petunjuk `pip install "sidik[gui]"` jika `matplotlib` tidak terpasang, dan bundel grafik non-*benchmark* menampilkan hitungan serta profil performa faktual tanpa metrik *ground-truth* buatan.
+- **Keamanan *GitHub Action*, SARIF & *Pre-Commit*:** Memindahkan seluruh input [`action.yml`](action.yml) ke `env:` untuk mencegah *script injection* dalam pemindaian tunggal, menormalkan URI SARIF relatif terhadap *repo root*, memperbarui `.pre-commit-hooks.yaml`, menambahkan penanda PEP 561 `sidik/py.typed` ke dalam *wheel*, *PyPI classifiers*, dan URL absolut pada `README.md`.
+
 ## [1.3.3] - 2026-11-24
 
 ### Diubah

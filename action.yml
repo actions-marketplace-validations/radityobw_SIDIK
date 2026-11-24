@@ -45,34 +45,29 @@ runs:
       with:
         python-version: "3.11"
 
-    - name: Install SIDIK minimal dependencies
+    - name: Install SIDIK Package
       shell: bash
       run: |
         python -m pip install --upgrade pip
-        pip install "packaging>=23.0"
+        pip install "${{ github.action_path }}"
 
-    - name: Generate SARIF v2.1.0 Report
+    - name: Run SIDIK Security Scan (SARIF v2.1.0 + PR Annotations + Gate Check)
       shell: bash
+      env:
+        INPUT_TARGET: ${{ inputs.target }}
+        INPUT_MODE: ${{ inputs.mode }}
+        INPUT_SEVERITY: ${{ inputs.severity }}
+        INPUT_FAIL_ON: ${{ inputs.fail-on }}
+        INPUT_LANG: ${{ inputs.lang }}
+        INPUT_SARIF_OUTPUT: ${{ inputs.sarif-output }}
       run: |
-        PYTHONPATH="${{ github.action_path }}" python -m sidik.cli \
-          --target "${{ inputs.target }}" \
-          --mode "${{ inputs.mode }}" \
-          --severity "${{ inputs.severity }}" \
-          --lang "${{ inputs.lang }}" \
-          --format sarif \
-          --output "${{ inputs.sarif-output }}" \
-          --fail-on none \
-          --quiet
-
-    - name: Run SIDIK Inline PR Annotations & Gate Check
-      shell: bash
-      run: |
-        PYTHONPATH="${{ github.action_path }}" python -m sidik.cli \
-          --target "${{ inputs.target }}" \
-          --mode "${{ inputs.mode }}" \
-          --severity "${{ inputs.severity }}" \
-          --lang "${{ inputs.lang }}" \
+        sidik \
+          --target "$INPUT_TARGET" \
+          --mode "$INPUT_MODE" \
+          --severity "$INPUT_SEVERITY" \
+          --lang "$INPUT_LANG" \
           --format github \
-          --fail-on "${{ inputs.fail-on }}" \
+          --sarif-output "$INPUT_SARIF_OUTPUT" \
+          --fail-on "$INPUT_FAIL_ON" \
           --quiet
 

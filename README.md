@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="logo/SIDIK-nobg-dark.png" alt="SIDIK Logo" width="320"/>
+<img src="https://raw.githubusercontent.com/radityobw/SIDIK/main/logo/SIDIK-nobg-dark.png" alt="SIDIK Logo" width="320"/>
 
 # SIDIK: *Secret Identification and Dependency Inspection Kit*
 
@@ -8,10 +8,10 @@
 *Unified Offline Static Application Security Testing (SAST) & Software Composition Analysis (SCA) for Python*
 
 [![Python 3.9+](https://img.shields.io/badge/Python-3.9%2B-3b82f6.svg)](#)
-[![Version v1.3.3](https://img.shields.io/badge/Version-v1.3.3-0ea5e9.svg)](#)
+[![Version v1.3.4](https://img.shields.io/badge/Version-v1.3.4-0ea5e9.svg)](#)
 [![Plugin API](https://img.shields.io/badge/Plugin%20API-sidik.plugins-8b5cf6.svg)](#)
 [![Offline OSV DB](https://img.shields.io/badge/Offline%20OSV%20DB-29%2C208%20Advisories-10b981.svg)](#)
-[![Unit Tests](https://img.shields.io/badge/Unit%20Tests-63%2F63%20Passing-22c55e.svg)](#)
+[![Unit Tests](https://img.shields.io/badge/Unit%20Tests-70%2F70%20Passing-22c55e.svg)](#)
 [![License: MIT](https://img.shields.io/badge/License-MIT-a855f7.svg)](#)
 
 </div>
@@ -104,7 +104,7 @@ SIDIK/
 │   └── generate_charts.py             # Generator grafik publikasi (300 DPI) & bundel visualisasi GUI
 ├── figures/                           # Grafik hasil eksperimen (Paper & Dark-Theme GUI Bundle)
 ├── results/                           # Rekaman JSON hasil eksperimen & benchmark komparatif
-├── tests/                             # Suite pengujian otomatis (62 unit & integration tests)
+├── tests/                             # Suite pengujian otomatis (70 unit & integration tests)
 ├── CHANGELOG.md                       # Riwayat rilis paket sidik
 ├── LICENSE                            # Lisensi MIT
 ├── pyproject.toml                     # Konfigurasi paket, dependencies, & entry points sidik/sidik-gui
@@ -120,7 +120,7 @@ SIDIK/
 
 ## 📊 Hasil Evaluasi Empiris & *Benchmark* Komparatif
 
-Seluruh hasil pengujian direkam secara transparan di direktori [`results/`](results/) dan divisualisasikan di [`figures/`](figures/):
+Seluruh hasil pengujian direkam secara transparan di direktori [`results/`](https://github.com/radityobw/SIDIK/tree/main/results) dan divisualisasikan di [`figures/`](https://github.com/radityobw/SIDIK/tree/main/figures):
 
 ### 1. Evaluasi Deteksi *Hardcoded Secret* pada 25 Repositori GitHub Nyata (`186.876` LOC, `1.193` Berkas `.py`, `109` Kandidat)
 > **Catatan Transparansi Korpus:** Ke-25 repositori publik memiliki `0` kebocoran kunci produksi aktif (`TP = 0`; seluruh `109` kandidat adalah kode pengujian/*fixture*/contoh dokumentasi). Oleh karena itu, evaluasi pada korpus ini mengukur ketahanan terhadap alarm palsu (*False Positive Rate* / FPR) dan kecepatan eksekusi.
@@ -159,17 +159,29 @@ Seluruh hasil pengujian direkam secara transparan di direktori [`results/`](resu
 
 ## 🚀 Panduan Penggunaan Cepat (*Quick Start*)
 
-### 1. Instalasi Dependensi & Aktivasi *Virtual Environment*
-Pastikan Python `3.9+` telah terpasang, lalu buat/aktifkan `.venv` dan pasang paket beserta dependensi:
+### 1. Instalasi Global via PyPI (Pengguna Umum & CI/CD)
+Pastikan Python `3.9+` telah terpasang, lalu pasang langsung dari PyPI:
 ```bash
-# Buat & aktifkan virtual environment (disarankan)
+# Pemindai CLI & Offline OSV SCA (ringan)
+pip install sidik
+
+# Atau lengkap dengan antarmuka Desktop GUI (Pillow + Matplotlib)
+pip install "sidik[gui]"
+
+# Atau terisolasi secara global memakai pipx / uv tool
+pipx install "sidik[gui]"
+
+# Opsional: aktifkan ekstensi Non-ANN ML di lingkungan yang sama
+pip install sidik-ml
+```
+
+Untuk pengembangan lokal dari *source repository*:
+```bash
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1          # Windows PowerShell
 # source .venv/bin/activate           # Linux / macOS
 
 pip install -e ".[gui]"
-# Opsional: pasang ekstensi ML pada venv yang sama
-# pip install -e ..\SIDIK-ML
 ```
 
 > **Catatan Windows PowerShell:** Jika Anda masuk ke direktori `.venv\Scripts` tanpa mengaktifkan `.\Activate.ps1`, gunakan awalan `.\` saat menjalankan skrip konsol (misalnya `.\sidik -i`, `.\sidik --gui`, `.\sidik-ml -i`, atau `.\sidik-ml --gui`). Jika aktivasi dibatasi kebijakan eksekusi, jalankan langsung melalui `python -m sidik ...` atau `python -m sidik_ml ...`.
@@ -213,7 +225,7 @@ sidik --target . --enable-ml --ml-model path/ke/model.skops
 sidik -i --enable-ml
 ```
 
-### 5. Menjalankan 63 *Unit Test* & Eksperimen *Benchmark*
+### 5. Menjalankan 70 *Unit Test* & Eksperimen *Benchmark*
 ```bash
 # Jalankan seluruh 63 unit & integration tests
 python -m unittest discover tests -v
@@ -230,7 +242,7 @@ python experiments/generate_charts.py
 # Jalankan lewat GitHub Container Registry (tanpa instalasi Python lokal)
 docker run --rm -v "${PWD}:/workspace" ghcr.io/radityobw/sidik:latest --target /workspace --format console
 
-# Atau pasang langsung dari PyPI (`pip install "sidik[gui]"`) atau aset .whl pada GitHub Releases v1.3.3
+# Atau jalankan langsung dari PyPI (`pip install "sidik[gui]"`) atau aset .whl pada GitHub Releases v1.3.4
 ```
 
 ---
@@ -239,8 +251,8 @@ docker run --rm -v "${PWD}:/workspace" ghcr.io/radityobw/sidik:latest --target /
 
 | Repositori | Peran Utama | Versi Terkini | Tautan |
 | :--- | :--- | :---: | :--- |
-| **SIDIK** | Mesin pemindai deterministik SAST & OSV SCA + host *plugin* UI | `v1.3.3` | [`github.com/radityobw/SIDIK`](https://github.com/radityobw/SIDIK) |
-| **SIDIK-ML** | Perangkat lunak ekstensi *Explainable Non-ANN ML* & *plugin* | `v0.5.3` | [`github.com/radityobw/SIDIK-ML`](https://github.com/radityobw/SIDIK-ML) |
+| **SIDIK** | Mesin pemindai deterministik SAST & OSV SCA + host *plugin* UI | `v1.3.4` | [`github.com/radityobw/SIDIK`](https://github.com/radityobw/SIDIK) |
+| **SIDIK-ML** | Perangkat lunak ekstensi *Explainable Non-ANN ML* & *plugin* | `v0.5.4` | [`github.com/radityobw/SIDIK-ML`](https://github.com/radityobw/SIDIK-ML) |
 
 > **Publikasi Ilmiah:** Artikel penelitian deterministik awal telah diterbitkan di [*Jurnal Media Akademik (JMA)*](https://jurnal.mediaakademik.com/index.php/jma/article/view/9068/6647).
 
@@ -286,29 +298,31 @@ By combining **12 curated regular expression rules**, **Shannon entropy verifica
 ## 🚀 Quick Start
 
 ```bash
-# 1. Create and activate virtual environment (recommended)
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1          # Windows PowerShell
-# source .venv/bin/activate           # Linux / macOS
+# 1. Global installation from PyPI (recommended for end users & CI/CD)
+pip install sidik                 # Core CLI & Offline OSV SCA
+pip install "sidik[gui]"          # Include Desktop GUI & chart visualization
+# pipx install "sidik[gui]"       # Isolated global CLI installation
 
-# 2. Install SIDIK with GUI support (plus optional SIDIK-ML plugin)
-pip install -e ".[gui]"
-# pip install -e ..\SIDIK-ML
+# (Optional) From a local source checkout:
+# python -m venv .venv && pip install -e ".[gui]"
 
-# 3. Launch Desktop GUI, Interactive TUI, or One-Shot CLI (symmetric with sidik-ml)
+# 2. Launch Desktop GUI, Interactive TUI, or One-Shot CLI
 sidik --gui                    # or sidik-gui / python -m sidik --gui
 sidik -i --lang en             # or sidik interactive / python -m sidik -i
-sidik .                        # or sidik --target . / python -m sidik --target .
+sidik .                        # or sidik --target . / sidik file1.py file2.py
 sidik --target . --format html --output audit_report.html --lang en
+sidik --update-db              # Refresh OSV PyPI advisories into user cache
 
-# 4. Run with optional SIDIK-ML triage plugin (when installed)
+# 3. Baseline, exclusions, and optional SIDIK-ML plugin
+sidik . --write-baseline .sidik-baseline.json
+sidik . --baseline .sidik-baseline.json --fail-on high
 sidik --list-plugins
 sidik --target . --enable-ml --ml-model path/to/model.skops
 
-# 5. Run full regression suite (63 tests)
+# 4. Run full regression suite (70 tests)
 python -m unittest discover tests -v
 
-# 6. Run via GitHub Container Registry (ghcr.io) or install from PyPI (`pip install "sidik[gui]"`)
+# 5. Run via GitHub Container Registry (ghcr.io)
 docker run --rm -v "${PWD}:/workspace" ghcr.io/radityobw/sidik:latest --target /workspace --format console
 ```
 
@@ -320,11 +334,11 @@ docker run --rm -v "${PWD}:/workspace" ghcr.io/radityobw/sidik:latest --target /
 
 | Repository | Primary Role | Latest Version | Link |
 | :--- | :--- | :---: | :--- |
-| **SIDIK** | Deterministic SAST & OSV SCA core + UI plugin host | `v1.3.3` | [`github.com/radityobw/SIDIK`](https://github.com/radityobw/SIDIK) |
-| **SIDIK-ML** | Explainable Non-ANN ML extension & `sidik.plugins` adapter | `v0.5.3` | [`github.com/radityobw/SIDIK-ML`](https://github.com/radityobw/SIDIK-ML) |
+| **SIDIK** | Deterministic SAST & OSV SCA core + UI plugin host | `v1.3.4` | [`github.com/radityobw/SIDIK`](https://github.com/radityobw/SIDIK) |
+| **SIDIK-ML** | Explainable Non-ANN ML extension & `sidik.plugins` adapter | `v0.5.4` | [`github.com/radityobw/SIDIK-ML`](https://github.com/radityobw/SIDIK-ML) |
 
 > **Scientific Publication:** The foundational deterministic study is published in [*Jurnal Media Akademik (JMA)*](https://jurnal.mediaakademik.com/index.php/jma/article/view/9068/6647).
 
 ## 📄 License
 
-Distributed under the **MIT License**. See [LICENSE](LICENSE).
+Distributed under the **MIT License**. See [LICENSE](https://github.com/radityobw/SIDIK/blob/main/LICENSE).

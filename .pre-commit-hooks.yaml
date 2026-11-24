@@ -1,8 +1,8 @@
 - id: sidik-security
   name: SIDIK Security Scanner (Secrets & Offline SCA)
-  description: Scans Python code for hardcoded secrets and dependency manifests for vulnerable packages offline.
-  entry: python -m sidik.cli --target . --fail-on high --quiet
+  description: Scans staged Python, environment, and manifest files for hardcoded secrets and vulnerable packages offline.
+  entry: sidik --fail-on high --quiet
   language: python
-  types: [python]
-  pass_filenames: false
+  files: '(\.py$|\.env(\..+)?$|\.ya?ml$|\.toml$|\.ini$|\.cfg$|requirements.*\.txt$|Pipfile(\.lock)?$|poetry\.lock$|uv\.lock$|setup\.py$)'
+  pass_filenames: true
 

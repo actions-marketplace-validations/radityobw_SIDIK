@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       release_tag:
-        description: "Optional existing release tag (e.g., v1.3.3) to attach wheel/tarball/SHA256SUMS and tag GHCR image"
+        description: "Optional existing release tag (e.g., v1.3.4) to attach wheel/tarball/SHA256SUMS and tag GHCR image"
         required: false
         default: ""
         type: string
@@ -48,7 +48,7 @@ jobs:
         run: |
           python -m build
           python -m twine check dist/*
-          python -c "import zipfile, glob; whl=glob.glob('dist/*.whl')[0]; names=zipfile.ZipFile(whl).namelist(); assert 'sidik/data/pypi_advisories.json' in names and 'sidik/assets/SIDIK-nobg-purelogo-dark.png' in names, names"
+          python -c "import zipfile, glob; whl=glob.glob('dist/*.whl')[0]; names=zipfile.ZipFile(whl).namelist(); assert 'sidik/py.typed' in names and 'sidik/data/pypi_advisories.json' in names and 'sidik/assets/SIDIK-nobg-purelogo-dark.png' in names, names"
           cd dist && sha256sum *.whl *.tar.gz > SHA256SUMS.txt
 
       - name: Upload Distribution Artifact

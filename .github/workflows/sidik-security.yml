@@ -38,15 +38,11 @@ jobs:
         run: |
           python -m build
           python -m twine check dist/*
-          python -c "import zipfile, glob; whl=glob.glob('dist/*.whl')[0]; names=zipfile.ZipFile(whl).namelist(); assert 'sidik/data/pypi_advisories.json' in names and 'sidik/assets/SIDIK-nobg-purelogo-dark.png' in names, names"
+          python -c "import zipfile, glob; whl=glob.glob('dist/*.whl')[0]; names=zipfile.ZipFile(whl).namelist(); assert 'sidik/py.typed' in names and 'sidik/data/pypi_advisories.json' in names and 'sidik/assets/SIDIK-nobg-purelogo-dark.png' in names, names"
 
-      - name: Run SIDIK Self-Audit (Inline Annotations + Job Summary)
+      - name: Run SIDIK Self-Audit (Inline Annotations, SARIF & Job Summary)
         run: |
-          python -m sidik.cli --target sidik --mode all --format github --fail-on high --lang en
-
-      - name: Generate SARIF v2.1.0 Security Report
-        run: |
-          python -m sidik.cli --target sidik --mode all --format sarif --output sidik-report.sarif --fail-on none
+          python -m sidik.cli --target sidik --mode all --format github --sarif-output sidik-report.sarif --fail-on high --lang en
 
       - name: Upload SARIF Artifact
         uses: actions/upload-artifact@v4

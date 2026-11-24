@@ -1,6 +1,7 @@
 """Parsers for Python dependency manifest files (requirements.txt, pyproject.toml, Pipfile, poetry.lock, setup.py)."""
 
 import ast
+import json
 import re
 from dataclasses import dataclass
 from typing import List, Dict, Optional, Tuple
@@ -77,7 +78,7 @@ def parse_requirements_txt(content: str) -> List[DependencySpec]:
 
 
 def parse_pyproject_toml(content: str) -> List[DependencySpec]:
-    """Parses pyproject.toml adhering to PEP 621 or Poetry schemas."""
+    """Parses pyproject.toml adhering to PEP 621, PEP 735 dependency-groups, or Poetry schemas."""
     specs = []
     try:
         data = tomllib.loads(content)
@@ -101,11 +102,52 @@ def parse_pyproject_toml(content: str) -> List[DependencySpec]:
                     manifest_type="pyproject.toml"
                 ))
 
-    # 2. Poetry tool.poetry.dependencies
-    poetry_deps = data.get("tool", {}).get("poetry", {}).get("dependencies", {})
-    if isinstance(poetry_deps, dict):
-        for pkg, val in poetry_deps.items():
-            if pkg.lower() == "python":
+    # 2. PEP 621 project.optional-dependencies
+    opt_deps = data.get("project", {}).get("optional-dependencies", {})
+    if isinstance(opt_deps, dict):
+        for _group, entries in opt_deps.items():
+            if not isinstance(entries, list):
+                continue
+            for dep in entries:
+                if not isinstance(dep, str):
+                    continue
+                parsed = _parse_pep508_requirement(dep)
+                if parsed:
+                    pkg_name, spec = parsed
+                    specs.append(DependencySpec(
+                        package_name=pkg_name,
+                        specifier=spec,
+                        raw_line=dep,
+                        line_number=0,
+                        manifest_type="pyproject.toml"
+                    ))
+
+    # 3. PEP 735 dependency-groups
+    dep_groups = data.get("dependency-groups", {})
+    if isinstance(dep_groups, dict):
+        for _group, entries in dep_groups.items():
+            if not isinstance(entries, list):
+                continue
+            for dep in entries:
+                if not isinstance(dep, str):
+                    continue
+                parsed = _parse_pep508_requirement(dep)
+                if parsed:
+                    pkg_name, spec = parsed
+                    specs.append(DependencySpec(
+                        package_name=pkg_name,
+                        specifier=spec,
+                        raw_line=dep,
+                        line_number=0,
+                        manifest_type="pyproject.toml"
+                    ))
+
+    # 4. Poetry tool.poetry.dependencies, dev-dependencies, and groups
+    def _collect_poetry_map(dep_map: object) -> None:
+        if not isinstance(dep_map, dict):
+            return
+        for pkg, val in dep_map.items():
+            if not isinstance(pkg, str) or pkg.lower() == "python":
                 continue
             pkg_name = normalize_package_name(pkg)
             if isinstance(val, str):
@@ -122,6 +164,68 @@ def parse_pyproject_toml(content: str) -> List[DependencySpec]:
                 manifest_type="pyproject.toml"
             ))
 
+    poetry_cfg = data.get("tool", {}).get("poetry", {})
+    if isinstance(poetry_cfg, dict):
+        _collect_poetry_map(poetry_cfg.get("dependencies"))
+        _collect_poetry_map(poetry_cfg.get("dev-dependencies"))
+        poetry_groups = poetry_cfg.get("group", {})
+        if isinstance(poetry_groups, dict):
+            for grp in poetry_groups.values():
+                if isinstance(grp, dict):
+                    _collect_poetry_map(grp.get("dependencies"))
+
+    return specs
+
+
+def parse_pipfile_lock(content: str) -> List[DependencySpec]:
+    """Parses Pipfile.lock JSON package sections (default and develop)."""
+    specs: List[DependencySpec] = []
+    try:
+        data = json.loads(content)
+    except Exception:
+        return specs
+    if not isinstance(data, dict):
+        return specs
+
+    for section in ("default", "develop"):
+        pkgs = data.get(section, {})
+        if not isinstance(pkgs, dict):
+            continue
+        for pkg, meta in pkgs.items():
+            if not isinstance(pkg, str) or not isinstance(meta, dict):
+                continue
+            ver = str(meta.get("version", "*")).strip() or "*"
+            specs.append(DependencySpec(
+                package_name=normalize_package_name(pkg),
+                specifier=ver,
+                raw_line=f"{pkg}{ver if ver != '*' else ''}",
+                line_number=0,
+                manifest_type="Pipfile.lock",
+            ))
+    return specs
+
+
+def parse_uv_lock(content: str) -> List[DependencySpec]:
+    """Parses uv.lock TOML package declarations."""
+    specs: List[DependencySpec] = []
+    try:
+        data = tomllib.loads(content)
+    except Exception:
+        return specs
+
+    for pkg in data.get("package", []):
+        if not isinstance(pkg, dict):
+            continue
+        name = pkg.get("name")
+        version = pkg.get("version")
+        if name and version:
+            specs.append(DependencySpec(
+                package_name=normalize_package_name(str(name)),
+                specifier=f"=={version}",
+                raw_line=f"name = {name}, version = {version}",
+                line_number=0,
+                manifest_type="uv.lock",
+            ))
     return specs
 
 

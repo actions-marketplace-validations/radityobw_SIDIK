@@ -1,13 +1,16 @@
 """Dependency security analyzer orchestrator."""
 
 import os
-from typing import List, Optional
+import re
+from typing import Callable, List, Optional
 from sidik.models import Finding, SeverityLevel, ConfidenceScore, compute_stable_id
 from sidik.dependency_analyzer.parsers import (
     parse_requirements_txt,
     parse_pyproject_toml,
     parse_pipfile,
+    parse_pipfile_lock,
     parse_poetry_lock,
+    parse_uv_lock,
     parse_setup_py,
     DependencySpec
 )
@@ -20,9 +23,33 @@ MANIFEST_FILENAMES = {
     "requirements.txt": parse_requirements_txt,
     "pyproject.toml": parse_pyproject_toml,
     "Pipfile": parse_pipfile,
+    "Pipfile.lock": parse_pipfile_lock,
     "poetry.lock": parse_poetry_lock,
+    "uv.lock": parse_uv_lock,
     "setup.py": parse_setup_py
 }
+
+_REQ_TXT_RE = re.compile(r"^.*requirements(?:[-_.][a-z0-9_.-]+)?\.txt$")
+
+
+def get_manifest_parser(file_path: str) -> Optional[Callable[[str], List[DependencySpec]]]:
+    """Resolves the dependency manifest parser function for a file path, or None."""
+    filename = os.path.basename(file_path)
+    f_lower = filename.lower()
+    for supported_name, p_func in MANIFEST_FILENAMES.items():
+        if f_lower == supported_name.lower():
+            return p_func
+    if _REQ_TXT_RE.match(f_lower):
+        return parse_requirements_txt
+    parent_name = os.path.basename(os.path.dirname(os.path.abspath(file_path))).lower()
+    if parent_name == "requirements" and f_lower.endswith(".txt"):
+        return parse_requirements_txt
+    return None
+
+
+def is_manifest_file(file_path: str) -> bool:
+    """Returns True if file_path matches any supported Python dependency manifest."""
+    return get_manifest_parser(file_path) is not None
 
 
 class DependencyAnalyzer:
@@ -36,12 +63,7 @@ class DependencyAnalyzer:
         if not os.path.isfile(file_path):
             return []
 
-        filename = os.path.basename(file_path)
-        parser = None
-        for supported_name, p_func in MANIFEST_FILENAMES.items():
-            if filename.lower() == supported_name.lower() or filename.lower().endswith(supported_name.lower()):
-                parser = p_func
-                break
+        parser = get_manifest_parser(file_path)
 
         if not parser:
             return []
@@ -111,8 +133,7 @@ class DependencyAnalyzer:
         findings: List[Finding] = []
         for root, _, files in os.walk(dir_path):
             for file in files:
-                f_lower = file.lower()
-                if any(f_lower == m.lower() or f_lower.endswith("requirements.txt") for m in MANIFEST_FILENAMES):
-                    full_path = os.path.join(root, file)
+                full_path = os.path.join(root, file)
+                if is_manifest_file(full_path):
                     findings.extend(self.scan_manifest_file(full_path))
         return findings

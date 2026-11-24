@@ -19,6 +19,7 @@ from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 from packaging.specifiers import InvalidSpecifier, SpecifierSet
 
+from sidik.dependency_analyzer.database import get_user_db_path
 from sidik.dependency_analyzer.parsers import normalize_package_name
 
 OSV_PYPI_URL = "https://osv-vulnerabilities.storage.googleapis.com/PyPI/all.zip"
@@ -273,9 +274,10 @@ def write_database(payload: Dict[str, Any], output_path: str) -> None:
         json.dump(payload, f, ensure_ascii=False, separators=(",", ":"))
 
 
-def import_osv(input_zip: Optional[str] = None, output_path: str = DEFAULT_OUTPUT_PATH,
+def import_osv(input_zip: Optional[str] = None, output_path: Optional[str] = None,
                url: str = OSV_PYPI_URL) -> Dict[str, Any]:
     """Downloads (or reads) the OSV PyPI archive and writes the SIDIK database. Returns metadata."""
+    resolved_output = output_path or get_user_db_path()
     if input_zip:
         with open(input_zip, "rb") as f:
             raw = f.read()
@@ -284,14 +286,15 @@ def import_osv(input_zip: Optional[str] = None, output_path: str = DEFAULT_OUTPU
         raw = download_osv_zip(url)
         source = url
     payload = build_database(read_zip_records(raw), source, hashlib.sha256(raw).hexdigest())
-    write_database(payload, output_path)
+    write_database(payload, resolved_output)
     return payload["metadata"]
 
 
 def main(argv: Optional[List[str]] = None) -> int:
+    default_out = get_user_db_path()
     parser = argparse.ArgumentParser(description="Import the Google OSV PyPI dump into the SIDIK offline database")
     parser.add_argument("--input", default=None, help="Local all.zip path (skips download)")
-    parser.add_argument("--output", default=DEFAULT_OUTPUT_PATH, help="Output JSON path")
+    parser.add_argument("--output", default=default_out, help="Output JSON path (defaults to user cache directory)")
     parser.add_argument("--url", default=OSV_PYPI_URL, help="OSV archive URL")
     args = parser.parse_args(argv)
     try:

@@ -1,9 +1,11 @@
 """Vulnerability advisory database for Python packages (OSV / GHSA format)."""
 
+from datetime import datetime, timezone
 from importlib import resources
 import json
 import logging
 import os
+import sys
 from typing import List, Dict, Any, Optional, Tuple
 from sidik.dependency_analyzer.parsers import normalize_package_name
 
@@ -13,6 +15,25 @@ logger = logging.getLogger(__name__)
 DEFAULT_DB_PATH = os.path.join(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "pypi_advisories.json"
 )
+
+
+def get_user_cache_dir() -> str:
+    """Returns a user-writable cache directory for SIDIK artifacts and DB updates."""
+    override = os.environ.get("SIDIK_CACHE_DIR", "").strip()
+    if override:
+        return os.path.abspath(override)
+    if sys.platform == "win32":
+        base = os.environ.get("LOCALAPPDATA") or os.path.expanduser("~")
+        return os.path.join(base, "sidik")
+    if sys.platform == "darwin":
+        return os.path.expanduser("~/Library/Caches/sidik")
+    xdg = os.environ.get("XDG_CACHE_HOME") or os.path.expanduser("~/.cache")
+    return os.path.join(xdg, "sidik")
+
+
+def get_user_db_path() -> str:
+    """Returns the user-writable OSV advisory database cache path."""
+    return os.path.join(get_user_cache_dir(), "pypi_advisories.json")
 
 
 # Curated offline advisory database of real CVEs across ubiquitous Python libraries
@@ -140,15 +161,15 @@ BUILTIN_ADVISORIES: List[Dict[str, Any]] = [
 ]
 
 
-# Module-level cache for the default OSV advisory database so repeated scans do not re-parse bundled OSV JSON
-_DEFAULT_DB_CACHE: Optional[Tuple[Dict[str, List[Dict[str, Any]]], Dict[str, Any], int]] = None
+# Module-level cache keyed by (active_path, mtime) so cache refreshes and SIDIK_CACHE_DIR overrides take effect
+_DEFAULT_DB_CACHE: Optional[Tuple[Tuple[str, Optional[float]], Dict[str, List[Dict[str, Any]]], Dict[str, Any], int, str]] = None
 
 
 class VulnerabilityDatabase:
     """Manages querying and matching of security advisories for Python dependencies.
 
-    Sources, merged in order: the curated ``BUILTIN_ADVISORIES``, the bundled OSV snapshot
-    (``sidik/data/pypi_advisories.json``, refreshed via ``osv_import``), and an optional
+    Sources, merged in order: the curated ``BUILTIN_ADVISORIES``, the user-cached or bundled OSV snapshot
+    (refreshed via ``osv_import`` into ``get_user_db_path()``), and an optional
     user-supplied JSON file. Loading is lazy so that constructing the analyzer stays cheap.
     """
 
@@ -158,6 +179,7 @@ class VulnerabilityDatabase:
         self._advisories: Optional[Dict[str, List[Dict[str, Any]]]] = None
         self.metadata: Dict[str, Any] = {}
         self._advisory_count = 0
+        self.active_db_source: str = "builtin"
 
     @property
     def advisory_count(self) -> int:
@@ -170,6 +192,19 @@ class VulnerabilityDatabase:
             self._load_database()
         assert self._advisories is not None
         return self._advisories
+
+    def snapshot_age_days(self) -> Optional[int]:
+        """Returns age in whole days of the loaded OSV snapshot, or None if unavailable."""
+        _ = self.advisories
+        gen = self.metadata.get("generated_utc")
+        if not isinstance(gen, str) or not gen.strip():
+            return None
+        try:
+            dt = datetime.strptime(gen.strip(), "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
+            delta = datetime.now(timezone.utc) - dt
+            return max(0, delta.days)
+        except ValueError:
+            return None
 
     @staticmethod
     def _parse_advisory_payload(data: Any) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
@@ -203,26 +238,52 @@ class VulnerabilityDatabase:
 
     def _load_database(self) -> None:
         global _DEFAULT_DB_CACHE
-        if not self._custom_db_path and self._include_osv and _DEFAULT_DB_CACHE is not None:
-            self._advisories, self.metadata, self._advisory_count = _DEFAULT_DB_CACHE
-            return
+        user_db = get_user_db_path()
+        cache_key: Optional[Tuple[str, Optional[float]]] = None
+        if not self._custom_db_path and self._include_osv:
+            if os.path.isfile(user_db):
+                try:
+                    cache_key = (user_db, os.path.getmtime(user_db))
+                except OSError:
+                    cache_key = (user_db, None)
+            else:
+                bundled_mtime = os.path.getmtime(DEFAULT_DB_PATH) if os.path.isfile(DEFAULT_DB_PATH) else None
+                cache_key = ("bundled", bundled_mtime)
+
+            if _DEFAULT_DB_CACHE is not None and _DEFAULT_DB_CACHE[0] == cache_key:
+                _, self._advisories, self.metadata, self._advisory_count, self.active_db_source = _DEFAULT_DB_CACHE
+                return
 
         raw_list: List[Dict[str, Any]] = list(BUILTIN_ADVISORIES)
+        self.active_db_source = "builtin"
 
         if self._include_osv:
-            try:
-                loaded = self._read_bundled_osv()
-                if loaded is not None:
-                    items, meta = loaded
-                    raw_list.extend(items)
-                    self.metadata = meta
-                else:
-                    logger.warning(
-                        "Bundled OSV advisory database not found; falling back to %d built-in advisories only.",
-                        len(BUILTIN_ADVISORIES),
-                    )
-            except (OSError, ValueError) as exc:
-                logger.warning("Failed to load bundled advisory database: %s", exc)
+            loaded: Optional[Tuple[List[Dict[str, Any]], Dict[str, Any]]] = None
+            if not self._custom_db_path and os.path.isfile(user_db):
+                try:
+                    loaded = self._read_advisory_file(user_db)
+                    self.active_db_source = f"user_cache ({user_db})"
+                except (OSError, ValueError) as exc:
+                    logger.warning("Failed to load user cache advisory database %s: %s", user_db, exc)
+                    loaded = None
+
+            if loaded is None:
+                try:
+                    loaded = self._read_bundled_osv()
+                    if loaded is not None:
+                        self.active_db_source = "bundled"
+                    else:
+                        logger.warning(
+                            "Bundled OSV advisory database not found; falling back to %d built-in advisories only.",
+                            len(BUILTIN_ADVISORIES),
+                        )
+                except (OSError, ValueError) as exc:
+                    logger.warning("Failed to load bundled advisory database: %s", exc)
+
+            if loaded is not None:
+                items, meta = loaded
+                raw_list.extend(items)
+                self.metadata = meta
 
         if self._custom_db_path:
             if not os.path.isfile(self._custom_db_path):
@@ -231,6 +292,7 @@ class VulnerabilityDatabase:
                 try:
                     items, _ = self._read_advisory_file(self._custom_db_path)
                     raw_list.extend(items)
+                    self.active_db_source = f"custom ({self._custom_db_path})"
                 except (OSError, ValueError) as exc:
                     logger.warning("Failed to load custom advisory database %s: %s", self._custom_db_path, exc)
 
@@ -249,8 +311,8 @@ class VulnerabilityDatabase:
             count += 1
         self._advisories = index
         self._advisory_count = count
-        if not self._custom_db_path and self._include_osv:
-            _DEFAULT_DB_CACHE = (self._advisories, self.metadata, self._advisory_count)
+        if not self._custom_db_path and self._include_osv and cache_key is not None:
+            _DEFAULT_DB_CACHE = (cache_key, self._advisories, self.metadata, self._advisory_count, self.active_db_source)
 
     @property
     def package_count(self) -> int:
