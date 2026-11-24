@@ -45,8 +45,8 @@ TRANSLATIONS: Dict[str, Dict[str, str]] = {
         "en": "- Explainable Non-ANN ML False Positive Reduction (Python)"
     },
     "app_version": {
-        "id": "v1.3.0 (Deterministic Edition)",
-        "en": "v1.3.0 (Deterministic Edition)"
+        "id": "v1.3.1 (Deterministic Edition)",
+        "en": "v1.3.1 (Deterministic Edition)"
     },
     "lang_toggle_btn": {
         "id": "English (EN)",

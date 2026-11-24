@@ -8,10 +8,10 @@
 *Unified Offline Static Application Security Testing (SAST) & Software Composition Analysis (SCA) for Python*
 
 [![Python 3.9+](https://img.shields.io/badge/Python-3.9%2B-3b82f6.svg)](#)
-[![Version v1.3.0](https://img.shields.io/badge/Version-v1.3.0-0ea5e9.svg)](#)
+[![Version v1.3.1](https://img.shields.io/badge/Version-v1.3.1-0ea5e9.svg)](#)
 [![Plugin API](https://img.shields.io/badge/Plugin%20API-sidik.plugins-8b5cf6.svg)](#)
 [![Offline OSV DB](https://img.shields.io/badge/Offline%20OSV%20DB-29%2C208%20Advisories-10b981.svg)](#)
-[![Unit Tests](https://img.shields.io/badge/Unit%20Tests-62%2F62%20Passing-22c55e.svg)](#)
+[![Unit Tests](https://img.shields.io/badge/Unit%20Tests-63%2F63%20Passing-22c55e.svg)](#)
 [![License: MIT](https://img.shields.io/badge/License-MIT-a855f7.svg)](#)
 
 </div>
@@ -213,9 +213,9 @@ sidik --target . --enable-ml --ml-model path/ke/model.skops
 sidik -i --enable-ml
 ```
 
-### 5. Menjalankan 62 *Unit Test* & Eksperimen *Benchmark*
+### 5. Menjalankan 63 *Unit Test* & Eksperimen *Benchmark*
 ```bash
-# Jalankan seluruh 62 unit & integration tests
+# Jalankan seluruh 63 unit & integration tests
 python -m unittest discover tests -v
 
 # Jalankan eksperimen & buat ulang seluruh grafik riset
@@ -227,14 +227,14 @@ python experiments/generate_charts.py
 
 ---
 
-## 🗺️ Peta Ekosistem Empat Repositori
+## 🗺️ Ekosistem Perangkat Lunak Publik (*Public Software Ecosystem*)
 
 | Repositori | Peran Utama | Versi Terkini | Tautan |
 | :--- | :--- | :---: | :--- |
-| **SIDIK** | Mesin pemindai deterministik SAST & OSV SCA + host *plugin* UI | `v1.3.0` | [`github.com/radityobw/SIDIK`](https://github.com/radityobw/SIDIK) |
-| **SIDIK-paper** | Arsip manuskrip ilmiah & presentasi instrumen deterministik | `v1.0.0` | [`github.com/radityobw/SIDIK-paper`](https://github.com/radityobw/SIDIK-paper) |
-| **SIDIK-ML** | Perangkat lunak ekstensi *Explainable Non-ANN ML* & *plugin* | `v0.5.0` | [`github.com/radityobw/SIDIK-ML`](https://github.com/radityobw/SIDIK-ML) |
-| **SIDIK-ML-paper** | Arsip riset, dataset kurasi, eksperimen, & manuskrip ML | `main` | [`github.com/radityobw/SIDIK-ML-paper`](https://github.com/radityobw/SIDIK-ML-paper) |
+| **SIDIK** | Mesin pemindai deterministik SAST & OSV SCA + host *plugin* UI | `v1.3.1` | [`github.com/radityobw/SIDIK`](https://github.com/radityobw/SIDIK) |
+| **SIDIK-ML** | Perangkat lunak ekstensi *Explainable Non-ANN ML* & *plugin* | `v0.5.1` | [`github.com/radityobw/SIDIK-ML`](https://github.com/radityobw/SIDIK-ML) |
+
+> **Publikasi Ilmiah:** Artikel penelitian deterministik awal telah diterbitkan di [*Jurnal Media Akademik (JMA)*](https://jurnal.mediaakademik.com/index.php/jma/article/view/9068/6647).
 
 ---
 
@@ -297,7 +297,7 @@ sidik --target . --format html --output audit_report.html --lang en
 sidik --list-plugins
 sidik --target . --enable-ml --ml-model path/to/model.skops
 
-# 5. Run full regression suite (62 tests)
+# 5. Run full regression suite (63 tests)
 python -m unittest discover tests -v
 ```
 
@@ -305,14 +305,14 @@ python -m unittest discover tests -v
 
 ---
 
-## 🗺️ Four-Repository Ecosystem Map
+## 🗺️ Public Software Ecosystem
 
 | Repository | Primary Role | Latest Version | Link |
 | :--- | :--- | :---: | :--- |
-| **SIDIK** | Deterministic SAST & OSV SCA core + UI plugin host | `v1.3.0` | [`github.com/radityobw/SIDIK`](https://github.com/radityobw/SIDIK) |
-| **SIDIK-paper** | Original deterministic research manuscripts & slides | `v1.0.0` | [`github.com/radityobw/SIDIK-paper`](https://github.com/radityobw/SIDIK-paper) |
-| **SIDIK-ML** | Explainable Non-ANN ML extension & `sidik.plugins` adapter | `v0.5.0` | [`github.com/radityobw/SIDIK-ML`](https://github.com/radityobw/SIDIK-ML) |
-| **SIDIK-ML-paper** | ML research datasets, Non-ANN experiments, & manuscripts | `main` | [`github.com/radityobw/SIDIK-ML-paper`](https://github.com/radityobw/SIDIK-ML-paper) |
+| **SIDIK** | Deterministic SAST & OSV SCA core + UI plugin host | `v1.3.1` | [`github.com/radityobw/SIDIK`](https://github.com/radityobw/SIDIK) |
+| **SIDIK-ML** | Explainable Non-ANN ML extension & `sidik.plugins` adapter | `v0.5.1` | [`github.com/radityobw/SIDIK-ML`](https://github.com/radityobw/SIDIK-ML) |
+
+> **Scientific Publication:** The foundational deterministic study is published in [*Jurnal Media Akademik (JMA)*](https://jurnal.mediaakademik.com/index.php/jma/article/view/9068/6647).
 
 ## 📄 License
 

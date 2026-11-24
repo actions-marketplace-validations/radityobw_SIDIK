@@ -2,6 +2,12 @@
 
 Seluruh perubahan penting pada paket `sidik-security` didokumentasikan pada berkas ini.
 
+## [1.3.1] - 2026-11-24
+
+### Diubah & Diperbaiki
+- Penyelarasan argumen CLI simetris (`--gui`, subperintah `gui`, `interactive`, `cli`, `tui`) pada [`sidik/cli.py`](sidik/cli.py) serta pembaruan peluncur [`run_sidik.bat`](run_sidik.bat), [`run_sidik_cli.bat`](run_sidik_cli.bat), dan [`run_sidik.sh`](run_sidik.sh) agar memprioritaskan interpreter `.venv` lokal.
+- Pengalihan tema visual **SIDIK-ML (*Explainable Non-ANN ML Edition*)** ke **Amber Orange (`#f59e0b` / `#ea580c`)** lintas *Desktop GUI* ([`sidik/gui.py`](sidik/gui.py)), *Interactive CLI* TUI, dan laporan konsol serta HTML ([`sidik/reporting/formatter.py`](sidik/reporting/formatter.py)), disertai penjagaan regresi bebas label `"Research Edition"` (`63/63` *unit test*).
+
 ## [1.3.0] - 2026-11-24
 
 ### Diubah & Ditambahkan
