@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       release_tag:
-        description: "Optional existing release tag (e.g., v1.3.1) to attach wheel/tarball/SHA256SUMS and tag GHCR image"
+        description: "Optional existing release tag (e.g., v1.3.3) to attach wheel/tarball/SHA256SUMS and tag GHCR image"
         required: false
         default: ""
         type: string
@@ -122,7 +122,7 @@ jobs:
     if: ${{ (github.event_name == 'release' && vars.ENABLE_PYPI_PUBLISH == 'true') || (github.event_name == 'workflow_dispatch' && inputs.publish_pypi == true) }}
     environment:
       name: pypi
-      url: https://pypi.org/p/sidik-security
+      url: https://pypi.org/p/sidik
     permissions:
       id-token: write
 

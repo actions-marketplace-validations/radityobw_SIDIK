@@ -1,6 +1,11 @@
 # Changelog
 
-Seluruh perubahan penting pada paket `sidik-security` didokumentasikan pada berkas ini.
+Seluruh perubahan penting pada paket `sidik` (sebelumnya `sidik-security`) didokumentasikan pada berkas ini.
+
+## [1.3.3] - 2026-11-24
+
+### Diubah
+- Mengubah nama distribusi PyPI paket dari `sidik-security` menjadi **`sidik`** (`pip install sidik` / `pip install "sidik[gui]"`) agar selaras dengan konfigurasi *PyPI Trusted Publishing* (`https://pypi.org/p/sidik`) dan memutakhirkan versi rilis ke `v1.3.3`.
 
 ## [1.3.2] - 2026-11-24
 
