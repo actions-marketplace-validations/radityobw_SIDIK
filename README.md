@@ -8,8 +8,8 @@
 *Unified Offline Polyglot Static Application Security Testing (SAST) & Multi-Ecosystem Software Composition Analysis (SCA)*
 
 [![Python 3.9+](https://img.shields.io/pypi/pyversions/sidik?color=3b82f6)](https://pypi.org/project/sidik/)
-[![PyPI Version](https://img.shields.io/pypi/v/sidik?label=PyPI&color=0ea5e9)](https://pypi.org/project/sidik/)
-[![GitHub Release](https://img.shields.io/github/v/release/radityobw/SIDIK?label=Release&color=0284c7)](https://github.com/radityobw/SIDIK/releases/latest)
+[![PyPI Version](https://img.shields.io/pypi/v/sidik?label=PyPI&color=0ea5e9&cacheSeconds=3600)](https://pypi.org/project/sidik/)
+[![GitHub Release](https://img.shields.io/github/v/release/radityobw/SIDIK?label=Release&color=0284c7&cacheSeconds=3600)](https://github.com/radityobw/SIDIK/releases/latest)
 [![CI Status](https://img.shields.io/github/actions/workflow/status/radityobw/SIDIK/sidik-security.yml?label=CI&color=22c55e)](https://github.com/radityobw/SIDIK/actions/workflows/sidik-security.yml)
 [![Offline OSV DB](https://img.shields.io/badge/Offline%20OSV%20DB-35%2C304%20Advisories-10b981.svg)](https://github.com/radityobw/SIDIK/blob/main/sidik/data/pypi_advisories.json)
 [![Docs](https://img.shields.io/badge/Docs-GitHub%20Pages-0ea5e9.svg)](https://radityobw.github.io/SIDIK/)
@@ -252,8 +252,8 @@ docker run --rm -v "${PWD}:/workspace" ghcr.io/radityobw/sidik:latest --target /
 
 | Repositori | Peran Utama | Versi Terkini | Tautan |
 | :--- | :--- | :---: | :--- |
-| **SIDIK** | Mesin pemindai deterministik SAST & OSV SCA + host *plugin* UI | [![PyPI](https://img.shields.io/pypi/v/sidik?label=PyPI&color=0ea5e9)](https://pypi.org/project/sidik/) | [`github.com/radityobw/SIDIK`](https://github.com/radityobw/SIDIK) |
-| **SIDIK-ML** | Perangkat lunak ekstensi *Explainable Non-ANN ML* & *plugin* | [![PyPI](https://img.shields.io/pypi/v/sidik-ml?label=PyPI&color=f59e0b)](https://pypi.org/project/sidik-ml/) | [`github.com/radityobw/SIDIK-ML`](https://github.com/radityobw/SIDIK-ML) |
+| **SIDIK** | Mesin pemindai deterministik SAST & OSV SCA + host *plugin* UI | [![PyPI](https://img.shields.io/pypi/v/sidik?label=PyPI&color=0ea5e9&cacheSeconds=3600)](https://pypi.org/project/sidik/) | [`github.com/radityobw/SIDIK`](https://github.com/radityobw/SIDIK) |
+| **SIDIK-ML** | Perangkat lunak ekstensi *Explainable Non-ANN ML* & *plugin* | [![PyPI](https://img.shields.io/pypi/v/sidik-ml?label=PyPI&color=f59e0b&cacheSeconds=3600)](https://pypi.org/project/sidik-ml/) | [`github.com/radityobw/SIDIK-ML`](https://github.com/radityobw/SIDIK-ML) |
 
 > **Publikasi Ilmiah:** Artikel penelitian deterministik awal telah diterbitkan di [*Jurnal Media Akademik (JMA)*](https://jurnal.mediaakademik.com/index.php/jma/article/view/9068/6647).
 
@@ -337,8 +337,8 @@ docker run --rm -v "${PWD}:/workspace" ghcr.io/radityobw/sidik:latest --target /
 
 | Repository | Primary Role | Latest Version | Link |
 | :--- | :--- | :---: | :--- |
-| **SIDIK** | Deterministic SAST & OSV SCA core + UI plugin host | [![PyPI](https://img.shields.io/pypi/v/sidik?label=PyPI&color=0ea5e9)](https://pypi.org/project/sidik/) | [`github.com/radityobw/SIDIK`](https://github.com/radityobw/SIDIK) |
-| **SIDIK-ML** | Explainable Non-ANN ML extension & `sidik.plugins` adapter | [![PyPI](https://img.shields.io/pypi/v/sidik-ml?label=PyPI&color=f59e0b)](https://pypi.org/project/sidik-ml/) | [`github.com/radityobw/SIDIK-ML`](https://github.com/radityobw/SIDIK-ML) |
+| **SIDIK** | Deterministic SAST & OSV SCA core + UI plugin host | [![PyPI](https://img.shields.io/pypi/v/sidik?label=PyPI&color=0ea5e9&cacheSeconds=3600)](https://pypi.org/project/sidik/) | [`github.com/radityobw/SIDIK`](https://github.com/radityobw/SIDIK) |
+| **SIDIK-ML** | Explainable Non-ANN ML extension & `sidik.plugins` adapter | [![PyPI](https://img.shields.io/pypi/v/sidik-ml?label=PyPI&color=f59e0b&cacheSeconds=3600)](https://pypi.org/project/sidik-ml/) | [`github.com/radityobw/SIDIK-ML`](https://github.com/radityobw/SIDIK-ML) |
 
 > **Scientific Publication:** The foundational deterministic study is published in [*Jurnal Media Akademik (JMA)*](https://jurnal.mediaakademik.com/index.php/jma/article/view/9068/6647).
 
