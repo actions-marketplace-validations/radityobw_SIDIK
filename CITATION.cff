@@ -1,0 +1,50 @@
+cff-version: 1.2.0
+message: "If you use SIDIK in your research or DevSecOps workflows, please cite it using the metadata below."
+title: "SIDIK: Secret Identification and Dependency Inspection Kit (Offline Polyglot SAST & Multi-Ecosystem SCA)"
+type: software
+version: "1.4.0"
+date-released: "2026-11-25"
+license: MIT
+repository-code: "https://github.com/radityobw/SIDIK"
+url: "https://radityobw.github.io/SIDIK/"
+authors:
+  - family-names: "Waskito"
+    given-names: "Radityo Budi"
+  - family-names: "Ibrahim"
+    given-names: "Fauzi Nur"
+  - family-names: "Pratama"
+    given-names: "Raditya Ahmad"
+  - family-names: "Rahman"
+    given-names: "Zayyan Fadhlur"
+  - family-names: "Saputra"
+    given-names: "Muhammad Fahri Indra"
+  - family-names: "Hilman"
+    given-names: "Mohamad"
+keywords:
+  - sast
+  - sca
+  - polyglot
+  - secret-detection
+  - vulnerability-scanner
+  - osv
+  - sarif
+  - offline-security
+  - devsecops
+preferred-citation:
+  type: article
+  title: "SIDIK: Lightweight Static Security Analyzer Python Pendeteksi Hardcoded Secret dan Dependency Rentan"
+  journal: "Jurnal Media Akademik (JMA)"
+  url: "https://jurnal.mediaakademik.com/index.php/jma/article/view/9068/6647"
+  authors:
+    - family-names: "Waskito"
+      given-names: "Radityo Budi"
+    - family-names: "Ibrahim"
+      given-names: "Fauzi Nur"
+    - family-names: "Pratama"
+      given-names: "Raditya Ahmad"
+    - family-names: "Rahman"
+      given-names: "Zayyan Fadhlur"
+    - family-names: "Saputra"
+      given-names: "Muhammad Fahri Indra"
+    - family-names: "Hilman"
+      given-names: "Mohamad"

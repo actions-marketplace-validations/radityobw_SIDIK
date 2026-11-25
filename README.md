@@ -12,6 +12,7 @@
 [![GitHub Release](https://img.shields.io/github/v/release/radityobw/SIDIK?label=Release&color=0284c7)](https://github.com/radityobw/SIDIK/releases/latest)
 [![CI Status](https://img.shields.io/github/actions/workflow/status/radityobw/SIDIK/sidik-security.yml?label=CI&color=22c55e)](https://github.com/radityobw/SIDIK/actions/workflows/sidik-security.yml)
 [![Offline OSV DB](https://img.shields.io/badge/Offline%20OSV%20DB-35%2C304%20Advisories-10b981.svg)](https://github.com/radityobw/SIDIK/blob/main/sidik/data/pypi_advisories.json)
+[![Docs](https://img.shields.io/badge/Docs-GitHub%20Pages-0ea5e9.svg)](https://radityobw.github.io/SIDIK/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-a855f7.svg)](https://github.com/radityobw/SIDIK/blob/main/LICENSE)
 
 </div>
@@ -24,7 +25,7 @@
 
 **SIDIK** (*Secret Identification and Dependency Inspection Kit*) adalah instrumen analisis keamanan statis (*Static Application Security Testing* / SAST) dan analisis komposisi perangkat lunak (*Software Composition Analysis* / SCA) *polyglot* terpadu yang beroperasi **100% secara luring (*offline*)** tanpa mengirim kode sumber ke peladen pihak ketiga (*zero data leakage*).
 
-Dengan mengintegrasikan **12 aturan ekspresi reguler (*regex*) terkurasi**, **kalkulasi entropi informasi Shannon**, dan **penyaringan konteks leksikal lintas `30+` bahasa/konfigurasi** bersama **basis data kerentanan lokal Google OSV (`35.304` rekaman advisori lintas `13.734` paket PyPI terbundel + CVE kritis luring & sinkronisasi SQLite untuk `npm`, `Go`, `crates.io`, `Maven`, `Packagist`, `RubyGems`, dan `NuGet`)** across **`19` format manifes & *lockfile*** (`requirements*.txt`, `pyproject.toml`, `Pipfile`/lock, `poetry.lock`, `uv.lock`, `setup.py`, `package.json`/lock, `yarn.lock`, `pnpm-lock.yaml`, `go.mod`, `Cargo.toml`/lock, `pom.xml`, `composer.json`/lock, `Gemfile.lock`, dan `*.csproj`), SIDIK mengatasi *alert fatigue* sekaligus menghilangkan ketergantungan internet pada *pipeline* CI/CD maupun jaringan terisolasi (*air-gapped*).
+Dengan mengintegrasikan **12 aturan ekspresi reguler (*regex*) terkurasi**, **kalkulasi entropi informasi Shannon**, dan **penyaringan konteks leksikal lintas `30+` bahasa/konfigurasi** bersama **basis data kerentanan lokal Google OSV (`35.304` rekaman advisori lintas `13.734` paket PyPI terbundel + CVE kritis luring & sinkronisasi SQLite untuk `npm`, `Go`, `crates.io`, `Maven`, `Packagist`, `RubyGems`, dan `NuGet`)** lintas **`19` format manifes & *lockfile*** (`requirements*.txt`, `pyproject.toml`, `Pipfile`/lock, `poetry.lock`, `uv.lock`, `setup.py`, `package.json`/lock, `yarn.lock`, `pnpm-lock.yaml`, `go.mod`, `Cargo.toml`/lock, `pom.xml`, `composer.json`/lock, `Gemfile.lock`, dan `*.csproj`), SIDIK mengatasi *alert fatigue* sekaligus menghilangkan ketergantungan internet pada *pipeline* CI/CD maupun jaringan terisolasi (*air-gapped*).
 
 ### 👥 Tim Peneliti & Pengembang (Kontribusi Setara / *Equal First Authors*)
 Jurusan Informatika, Fakultas Teknik, Universitas Sultan Ageng Tirtayasa (Untirta):

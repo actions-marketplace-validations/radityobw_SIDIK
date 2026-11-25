@@ -41,6 +41,7 @@ dependencies = [
 
 [project.urls]
 Homepage = "https://github.com/radityobw/SIDIK"
+Documentation = "https://radityobw.github.io/SIDIK/"
 Repository = "https://github.com/radityobw/SIDIK"
 Issues = "https://github.com/radityobw/SIDIK/issues"
 Changelog = "https://github.com/radityobw/SIDIK/blob/main/CHANGELOG.md"
