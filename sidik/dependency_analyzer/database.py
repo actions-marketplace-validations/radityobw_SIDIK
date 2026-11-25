@@ -1,4 +1,4 @@
-"""Vulnerability advisory database for Python packages (OSV / GHSA format)."""
+"""Vulnerability advisory database for Python and multi-ecosystem packages (OSV / GHSA format)."""
 
 from datetime import datetime, timezone
 from importlib import resources
@@ -6,9 +6,10 @@ import json
 import logging
 import os
 import re
+import sqlite3
 import sys
 from typing import List, Dict, Any, Optional, Tuple
-from sidik.dependency_analyzer.parsers import normalize_package_name
+from sidik.dependency_analyzer.parsers import normalize_ecosystem_package_name, normalize_package_name
 
 logger = logging.getLogger(__name__)
 
@@ -18,6 +19,53 @@ DEFAULT_DB_PATH = os.path.join(
 )
 _DB_META_ADV_RE = re.compile(r'"advisory_count"\s*:\s*(\d+)')
 _DB_META_PKG_RE = re.compile(r'"package_count"\s*:\s*(\d+)')
+
+SUPPORTED_ECOSYSTEMS: Tuple[str, ...] = (
+    "PyPI",
+    "npm",
+    "Go",
+    "crates.io",
+    "Maven",
+    "Packagist",
+    "RubyGems",
+    "NuGet",
+)
+
+ECOSYSTEM_ALIASES: Dict[str, str] = {
+    "pypi": "PyPI",
+    "python": "PyPI",
+    "pip": "PyPI",
+    "npm": "npm",
+    "js": "npm",
+    "javascript": "npm",
+    "node": "npm",
+    "nodejs": "npm",
+    "go": "Go",
+    "golang": "Go",
+    "crates": "crates.io",
+    "crates.io": "crates.io",
+    "cargo": "crates.io",
+    "rust": "crates.io",
+    "maven": "Maven",
+    "java": "Maven",
+    "packagist": "Packagist",
+    "composer": "Packagist",
+    "php": "Packagist",
+    "rubygems": "RubyGems",
+    "ruby": "RubyGems",
+    "gem": "RubyGems",
+    "nuget": "NuGet",
+    "dotnet": "NuGet",
+    "csharp": "NuGet",
+    ".net": "NuGet",
+}
+
+
+def canonicalize_ecosystem(name: str) -> Optional[str]:
+    """Resolves user ecosystem name or alias into its official OSV ecosystem identifier."""
+    if not name or not name.strip():
+        return None
+    return ECOSYSTEM_ALIASES.get(name.strip().lower())
 
 
 def get_user_cache_dir() -> str:
@@ -35,8 +83,13 @@ def get_user_cache_dir() -> str:
 
 
 def get_user_db_path() -> str:
-    """Returns the user-writable OSV advisory database cache path."""
+    """Returns the user-writable OSV PyPI advisory database cache path."""
     return os.path.join(get_user_cache_dir(), "pypi_advisories.json")
+
+
+def get_user_sqlite_db_path() -> str:
+    """Returns the user-writable indexed SQLite database path for multi-ecosystem OSV sync."""
+    return os.path.join(get_user_cache_dir(), "osv_ecosystems.sqlite")
 
 
 def _extract_header_counts(head_text: str, builtin_count: int) -> Optional[Tuple[int, int]]:
@@ -207,22 +260,203 @@ BUILTIN_ADVISORIES: List[Dict[str, Any]] = [
 ]
 
 
+# Curated built-in advisories for non-Python ecosystems (kept separate from PyPI BUILTIN_ADVISORIES;
+# full multi-ecosystem OSV catalogs are synced on demand into osv_ecosystems.sqlite via --update-db --ecosystem)
+BUILTIN_MULTI_ECOSYSTEM_ADVISORIES: List[Dict[str, Any]] = [
+    {
+        "id": "GHSA-jf85-cpcp-j695",
+        "cve": "CVE-2020-8203",
+        "ecosystem": "npm",
+        "package": "lodash",
+        "vulnerable_specifier": "<4.17.20",
+        "fixed_version": "4.17.20",
+        "severity": "HIGH",
+        "summary": "Prototype Pollution in lodash",
+        "details": "zipObjectDeep in lodash before 4.17.20 allows prototype pollution attacks."
+    },
+    {
+        "id": "GHSA-wf5p-g6vw-rhxx",
+        "cve": "CVE-2023-45857",
+        "ecosystem": "npm",
+        "package": "axios",
+        "vulnerable_specifier": ">=0.8.1,<1.6.0",
+        "fixed_version": "1.6.0",
+        "severity": "MEDIUM",
+        "summary": "Axios Cross-Site Request Forgery XSRF-TOKEN exposure",
+        "details": "Axios inadvertently reveals confidential XSRF-TOKEN cookies to third-party hosts."
+    },
+    {
+        "id": "GHSA-xvch-5gv4-984h",
+        "cve": "CVE-2021-44906",
+        "ecosystem": "npm",
+        "package": "minimist",
+        "vulnerable_specifier": "<1.2.6",
+        "fixed_version": "1.2.6",
+        "severity": "CRITICAL",
+        "summary": "Prototype Pollution in minimist",
+        "details": "minimist prior to 1.2.6 is vulnerable to Prototype Pollution via setKey()."
+    },
+    {
+        "id": "GHSA-27h2-hvpr-p74q",
+        "cve": "CVE-2022-23529",
+        "ecosystem": "npm",
+        "package": "jsonwebtoken",
+        "vulnerable_specifier": "<9.0.0",
+        "fixed_version": "9.0.0",
+        "severity": "HIGH",
+        "summary": "jsonwebtoken unrestricted key type in verify()",
+        "details": "Insecure secretOrPublicKey handling allows signature verification bypass with malicious keys."
+    },
+    {
+        "id": "GHSA-rv95-896h-c2vc",
+        "cve": "CVE-2024-29041",
+        "ecosystem": "npm",
+        "package": "express",
+        "vulnerable_specifier": "<4.19.2",
+        "fixed_version": "4.19.2",
+        "severity": "MEDIUM",
+        "summary": "Express.js Open Redirect via malformed URLs in res.location/res.redirect",
+        "details": "Passing untrusted user input to res.redirect() permits open redirect attacks."
+    },
+    {
+        "id": "GO-2023-2382",
+        "cve": "CVE-2023-44487",
+        "ecosystem": "Go",
+        "package": "golang.org/x/net",
+        "vulnerable_specifier": "<0.17.0",
+        "fixed_version": "0.17.0",
+        "severity": "HIGH",
+        "summary": "golang.org/x/net HTTP/2 Rapid Reset Denial of Service",
+        "details": "HTTP/2 stream cancellation flood exhausts server CPU and memory resources."
+    },
+    {
+        "id": "GO-2023-2153",
+        "cve": "CVE-2023-45288",
+        "ecosystem": "Go",
+        "package": "golang.org/x/crypto",
+        "vulnerable_specifier": "<0.21.0",
+        "fixed_version": "0.21.0",
+        "severity": "HIGH",
+        "summary": "golang.org/x/crypto SSH/HTTP2 Denial of Service",
+        "details": "Crafted protocol frames trigger excessive memory consumption in x/crypto."
+    },
+    {
+        "id": "GHSA-2c4m-59x9-fr2g",
+        "cve": "CVE-2023-29401",
+        "ecosystem": "Go",
+        "package": "github.com/gin-gonic/gin",
+        "vulnerable_specifier": "<1.9.1",
+        "fixed_version": "1.9.1",
+        "severity": "HIGH",
+        "summary": "Gin improper filename validation allows file upload path traversal",
+        "details": "gin.Context.SaveUploadedFile or untrusted Content-Disposition can overwrite unintended files."
+    },
+    {
+        "id": "RUSTSEC-2023-0044",
+        "cve": "CVE-2023-3817",
+        "ecosystem": "crates.io",
+        "package": "openssl",
+        "vulnerable_specifier": "<0.10.55",
+        "fixed_version": "0.10.55",
+        "severity": "MEDIUM",
+        "summary": "Rust openssl crate DH_check() excessive computation DoS",
+        "details": "Checking overly large Diffie-Hellman parameters degrades responsiveness."
+    },
+    {
+        "id": "GHSA-5h46-h7hh-c6x9",
+        "cve": "CVE-2024-1139",
+        "ecosystem": "crates.io",
+        "package": "hyper",
+        "vulnerable_specifier": ">=1.0.0,<1.2.0",
+        "fixed_version": "1.2.0",
+        "severity": "MEDIUM",
+        "summary": "hyper HTTP request smuggling / response handling flaw",
+        "details": "Upgrade hyper to >=1.2.0 to enforce strict header framing."
+    },
+    {
+        "id": "GHSA-jfh8-c2jp-5v3q",
+        "cve": "CVE-2021-44228",
+        "ecosystem": "Maven",
+        "package": "org.apache.logging.log4j:log4j-core",
+        "vulnerable_specifier": ">=2.0,<2.15.0",
+        "fixed_version": "2.17.1",
+        "severity": "CRITICAL",
+        "summary": "Apache Log4j2 JNDI Remote Code Execution (Log4Shell)",
+        "details": "Untrusted JNDI lookups in log messages allow arbitrary remote code execution."
+    },
+    {
+        "id": "GHSA-36p3-wjmg-h94x",
+        "cve": "CVE-2022-22965",
+        "ecosystem": "Maven",
+        "package": "org.springframework:spring-webmvc",
+        "vulnerable_specifier": ">=5.3.0,<5.3.18",
+        "fixed_version": "5.3.18",
+        "severity": "CRITICAL",
+        "summary": "Spring4Shell Remote Code Execution via Data Binding on JDK 9+",
+        "details": "ClassLoader manipulation through Spring MVC data binding permits RCE."
+    },
+    {
+        "id": "GHSA-7367-hcmw-2f2r",
+        "cve": "CVE-2021-43824",
+        "ecosystem": "Packagist",
+        "package": "laravel/framework",
+        "vulnerable_specifier": ">=8.0.0,<8.75.0",
+        "fixed_version": "8.75.0",
+        "severity": "HIGH",
+        "summary": "Laravel Query Parameter Binding SQL Injection / Validation Bypass",
+        "details": "Malformed query parameters could bypass validation in affected Laravel 8.x builds."
+    },
+    {
+        "id": "GHSA-mcvf-237v-6jfc",
+        "cve": "CVE-2023-22795",
+        "ecosystem": "RubyGems",
+        "package": "rails",
+        "vulnerable_specifier": "<7.0.4.1",
+        "fixed_version": "7.0.4.1",
+        "severity": "HIGH",
+        "summary": "Ruby on Rails ReDoS in Action Dispatch Accept header parsing",
+        "details": "Crafted Accept headers trigger catastrophic regex backtracking."
+    },
+    {
+        "id": "GHSA-5crp-9r3c-p9vr",
+        "cve": "CVE-2024-21907",
+        "ecosystem": "NuGet",
+        "package": "newtonsoft.json",
+        "vulnerable_specifier": "<13.0.1",
+        "fixed_version": "13.0.1",
+        "severity": "HIGH",
+        "summary": "Newtonsoft.Json Improper Handling of Exceptional Conditions (StackOverflow DoS)",
+        "details": "Deeply nested JSON payloads crash .NET processes with StackOverflowException."
+    },
+]
+
+
 # Module-level cache keyed by (active_path, mtime) so cache refreshes and SIDIK_CACHE_DIR overrides take effect
-_DEFAULT_DB_CACHE: Optional[Tuple[Tuple[str, Optional[float]], Dict[str, List[Dict[str, Any]]], Dict[str, Any], int, str]] = None
+_DEFAULT_DB_CACHE: Optional[
+    Tuple[
+        Tuple[str, Optional[float]],
+        Dict[str, List[Dict[str, Any]]],
+        Dict[Tuple[str, str], List[Dict[str, Any]]],
+        Dict[str, Any],
+        int,
+        str,
+    ]
+] = None
 
 
 class VulnerabilityDatabase:
-    """Manages querying and matching of security advisories for Python dependencies.
+    """Manages querying and matching of security advisories for Python and multi-ecosystem dependencies.
 
-    Sources, merged in order: the curated ``BUILTIN_ADVISORIES``, the user-cached or bundled OSV snapshot
-    (refreshed via ``osv_import`` into ``get_user_db_path()``), and an optional
-    user-supplied JSON file. Loading is lazy so that constructing the analyzer stays cheap.
+    Sources, merged in order: the curated ``BUILTIN_ADVISORIES`` / ``BUILTIN_MULTI_ECOSYSTEM_ADVISORIES``,
+    the user-cached or bundled OSV snapshot, indexed multi-ecosystem SQLite cache
+    (``osv_ecosystems.sqlite``), and an optional user-supplied JSON file.
     """
 
     def __init__(self, custom_db_path: Optional[str] = None, include_osv: bool = True):
         self._custom_db_path = custom_db_path
         self._include_osv = include_osv
         self._advisories: Optional[Dict[str, List[Dict[str, Any]]]] = None
+        self._multi_advisories: Optional[Dict[Tuple[str, str], List[Dict[str, Any]]]] = None
         self.metadata: Dict[str, Any] = {}
         self._advisory_count = 0
         self.active_db_source: str = "builtin"
@@ -297,10 +531,18 @@ class VulnerabilityDatabase:
                 cache_key = ("bundled", bundled_mtime)
 
             if _DEFAULT_DB_CACHE is not None and _DEFAULT_DB_CACHE[0] == cache_key:
-                _, self._advisories, self.metadata, self._advisory_count, self.active_db_source = _DEFAULT_DB_CACHE
+                (
+                    _,
+                    self._advisories,
+                    self._multi_advisories,
+                    self.metadata,
+                    self._advisory_count,
+                    self.active_db_source,
+                ) = _DEFAULT_DB_CACHE
                 return
 
         raw_list: List[Dict[str, Any]] = list(BUILTIN_ADVISORIES)
+        multi_raw_list: List[Dict[str, Any]] = list(BUILTIN_MULTI_ECOSYSTEM_ADVISORIES)
         self.active_db_source = "builtin"
 
         if self._include_osv:
@@ -337,7 +579,12 @@ class VulnerabilityDatabase:
             else:
                 try:
                     items, _ = self._read_advisory_file(self._custom_db_path)
-                    raw_list.extend(items)
+                    for item in items:
+                        item_eco = str(item.get("ecosystem", "PyPI")).strip()
+                        if not item_eco or item_eco.lower() == "pypi":
+                            raw_list.append(item)
+                        else:
+                            multi_raw_list.append(item)
                     self.active_db_source = f"custom ({self._custom_db_path})"
                 except (OSError, ValueError) as exc:
                     logger.warning("Failed to load custom advisory database %s: %s", self._custom_db_path, exc)
@@ -355,17 +602,139 @@ class VulnerabilityDatabase:
             seen.add(key)
             index.setdefault(pkg, []).append(item)
             count += 1
+
+        multi_index: Dict[Tuple[str, str], List[Dict[str, Any]]] = {}
+        multi_seen: set[Tuple[str, str, str, str]] = set()
+        for item in multi_raw_list:
+            eco = str(item.get("ecosystem", "")).strip()
+            pkg = normalize_ecosystem_package_name(str(item.get("package", "")), eco)
+            if not (eco and pkg):
+                continue
+            key_m = (eco.lower(), pkg, str(item.get("id", "")), str(item.get("vulnerable_specifier", "")))
+            if key_m in multi_seen:
+                continue
+            multi_seen.add(key_m)
+            multi_index.setdefault((eco.lower(), pkg), []).append(item)
+
         self._advisories = index
+        self._multi_advisories = multi_index
         self._advisory_count = count
         if not self._custom_db_path and self._include_osv and cache_key is not None:
-            _DEFAULT_DB_CACHE = (cache_key, self._advisories, self.metadata, self._advisory_count, self.active_db_source)
+            _DEFAULT_DB_CACHE = (
+                cache_key,
+                self._advisories,
+                self._multi_advisories,
+                self.metadata,
+                self._advisory_count,
+                self.active_db_source,
+            )
 
     @property
     def package_count(self) -> int:
         return len(self.advisories)
 
-    def get_advisories(self, package_name: str) -> List[Dict[str, Any]]:
-        """Returns all registered advisories for a given package name."""
-        norm = normalize_package_name(package_name)
-        return self.advisories.get(norm, [])
+    @property
+    def multi_ecosystem_builtin_count(self) -> int:
+        """Returns count of built-in non-PyPI advisories loaded offline."""
+        _ = self.advisories
+        multi = getattr(self, "_multi_advisories", {})
+        return sum(len(v) for v in multi.values())
+
+    def _query_sqlite_advisories(self, ecosystem: str, package_name: str) -> List[Dict[str, Any]]:
+        """Queries synced multi-ecosystem OSV advisories from local SQLite cache if present."""
+        if not self._include_osv:
+            return []
+        sqlite_path = get_user_sqlite_db_path()
+        if not os.path.isfile(sqlite_path):
+            return []
+        rows: List[Dict[str, Any]] = []
+        try:
+            conn = sqlite3.connect(sqlite_path)
+            try:
+                cur = conn.execute(
+                    "SELECT id, cve, vulnerable_specifier, vulnerable_versions, fixed_version, severity, summary, details "
+                    "FROM advisories WHERE lower(ecosystem) = lower(?) AND package = ?",
+                    (ecosystem, package_name),
+                )
+                for rid, cve, vspec, vvers_json, fixed_ver, sev, summary, details in cur.fetchall():
+                    rec: Dict[str, Any] = {
+                        "id": rid,
+                        "cve": cve,
+                        "ecosystem": ecosystem,
+                        "package": package_name,
+                        "vulnerable_specifier": vspec,
+                        "fixed_version": fixed_ver,
+                        "severity": sev,
+                        "summary": summary,
+                        "details": details,
+                    }
+                    if vvers_json:
+                        try:
+                            rec["vulnerable_versions"] = json.loads(vvers_json)
+                        except ValueError:
+                            pass
+                    rows.append(rec)
+            finally:
+                conn.close()
+        except sqlite3.Error as exc:
+            logger.debug("SQLite OSV lookup failed (%s): %s", sqlite_path, exc)
+        return rows
+
+    def get_synced_ecosystems(self) -> List[Dict[str, Any]]:
+        """Returns metadata rows for multi-ecosystem OSV catalogs synced into osv_ecosystems.sqlite."""
+        sqlite_path = get_user_sqlite_db_path()
+        if not os.path.isfile(sqlite_path):
+            return []
+        out: List[Dict[str, Any]] = []
+        try:
+            conn = sqlite3.connect(sqlite_path)
+            try:
+                cur = conn.execute(
+                    "SELECT ecosystem, advisory_count, package_count, generated_utc, source "
+                    "FROM ecosystem_meta ORDER BY ecosystem"
+                )
+                for eco, adv_n, pkg_n, gen_utc, src in cur.fetchall():
+                    out.append({
+                        "ecosystem": eco,
+                        "advisory_count": adv_n,
+                        "package_count": pkg_n,
+                        "generated_utc": gen_utc,
+                        "source": src,
+                    })
+            finally:
+                conn.close()
+        except sqlite3.Error:
+            return []
+        return out
+
+    def get_advisories(self, package_name: str, ecosystem: str = "PyPI") -> List[Dict[str, Any]]:
+        """Returns all registered advisories for a given package within the target ecosystem."""
+        eco_clean = (ecosystem or "PyPI").strip()
+        if eco_clean.lower() == "pypi":
+            norm = normalize_package_name(package_name)
+            base_rows = list(self.advisories.get(norm, []))
+            sqlite_rows = self._query_sqlite_advisories("PyPI", norm)
+            if not sqlite_rows:
+                return base_rows
+            seen = {(str(a.get("id", "")), str(a.get("vulnerable_specifier", ""))) for a in base_rows}
+            for sr in sqlite_rows:
+                key = (str(sr.get("id", "")), str(sr.get("vulnerable_specifier", "")))
+                if key not in seen:
+                    seen.add(key)
+                    base_rows.append(sr)
+            return base_rows
+
+        _ = self.advisories
+        norm_eco = normalize_ecosystem_package_name(package_name, eco_clean)
+        multi = getattr(self, "_multi_advisories", {})
+        combined = list(multi.get((eco_clean.lower(), norm_eco), []))
+        sqlite_rows = self._query_sqlite_advisories(eco_clean, norm_eco)
+        if sqlite_rows:
+            seen = {(str(a.get("id", "")), str(a.get("vulnerable_specifier", ""))) for a in combined}
+            for sr in sqlite_rows:
+                key = (str(sr.get("id", "")), str(sr.get("vulnerable_specifier", "")))
+                if key not in seen:
+                    seen.add(key)
+                    combined.append(sr)
+        return combined
 

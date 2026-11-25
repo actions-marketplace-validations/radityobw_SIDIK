@@ -17,8 +17,21 @@ try:
 except ModuleNotFoundError:  # pragma: no cover - Python < 3.11 fallback
     import tomli as tomllib  # type: ignore[no-redef]
 
-DEFAULT_SECRET_EXTENSIONS: Tuple[str, ...] = (".py", ".env", ".yaml", ".yml", ".toml", ".ini", ".cfg")
-LOCKFILE_NAMES = {"poetry.lock", "pipfile.lock", "uv.lock", "package-lock.json", "yarn.lock"}
+DEFAULT_SECRET_EXTENSIONS: Tuple[str, ...] = (
+    ".py", ".js", ".jsx", ".mjs", ".cjs", ".ts", ".tsx", ".vue", ".svelte",
+    ".go", ".rs", ".java", ".kt", ".kts", ".scala", ".cs", ".php", ".rb",
+    ".swift", ".dart", ".c", ".cpp", ".h", ".sh", ".bash", ".zsh", ".ps1",
+    ".env", ".yaml", ".yml", ".toml", ".ini", ".cfg", ".conf", ".properties",
+    ".json", ".xml", ".tf", ".tfvars", ".hcl", ".gradle",
+)
+LOCKFILE_NAMES = {
+    "poetry.lock", "pipfile.lock", "uv.lock",
+    "package-lock.json", "npm-shrinkwrap.json", "yarn.lock", "pnpm-lock.yaml",
+    "cargo.lock", "go.sum", "composer.lock", "gemfile.lock",
+    "packages.lock.json", "flake.lock",
+}
+SPECIAL_SECRET_FILENAMES = {"dockerfile", ".npmrc", ".pypirc", ".netrc"}
+_MINIFIED_SUFFIXES = (".min.js", ".min.css", ".bundle.js", ".map")
 
 
 def load_pyproject_sidik_config(base_dir: str) -> Dict[str, Any]:
@@ -38,8 +51,10 @@ def load_pyproject_sidik_config(base_dir: str) -> Dict[str, Any]:
 def is_secret_candidate_filename(filename: str, secret_extensions: Tuple[str, ...]) -> bool:
     """Returns True when filename should be scanned for hardcoded secrets."""
     f_lower = filename.lower()
-    if f_lower in LOCKFILE_NAMES:
+    if f_lower in LOCKFILE_NAMES or f_lower.endswith(_MINIFIED_SUFFIXES):
         return False
+    if f_lower in SPECIAL_SECRET_FILENAMES or f_lower.startswith("dockerfile."):
+        return True
     if f_lower == ".env" or f_lower.startswith(".env."):
         return True
     return f_lower.endswith(secret_extensions)
@@ -104,7 +119,9 @@ class SecurityScanner:
 
     DEFAULT_PRUNE_DIRS = {
         ".git", ".venv", "venv", "__pycache__", "node_modules",
-        ".idea", ".vscode", ".pytest_cache", "dist", "build"
+        ".idea", ".vscode", ".pytest_cache", "dist", "build",
+        "target", "vendor", ".next", ".nuxt", "out", "bin", "obj",
+        ".gradle", ".terraform", "coverage", "__snapshots__",
     }
 
     def __init__(

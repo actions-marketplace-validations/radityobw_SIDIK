@@ -1,8 +1,9 @@
-"""Parsers for Python dependency manifest files (requirements.txt, pyproject.toml, Pipfile, poetry.lock, setup.py)."""
+"""Parsers for Python and multi-ecosystem dependency manifest and lockfile formats."""
 
 import ast
 import json
 import re
+import xml.etree.ElementTree as ET
 from dataclasses import dataclass
 from typing import List, Dict, Optional, Tuple
 from urllib.parse import unquote
@@ -22,11 +23,22 @@ class DependencySpec:
     raw_line: str
     line_number: int
     manifest_type: str
+    ecosystem: str = "PyPI"
 
 
 def normalize_package_name(name: str) -> str:
-    """Normalizes package name according to PEP 503."""
+    """Normalizes Python package name according to PEP 503."""
     return re.sub(r"[-_.]+", "-", name).lower().strip()
+
+
+def normalize_ecosystem_package_name(name: str, ecosystem: str = "PyPI") -> str:
+    """Normalizes package names using ecosystem conventions (PEP 503 for PyPI, exact for Go/Maven, lowercase otherwise)."""
+    eco = (ecosystem or "PyPI").strip().lower()
+    if eco == "pypi":
+        return normalize_package_name(name)
+    if eco in ("go", "maven"):
+        return name.strip()
+    return name.strip().lower()
 
 
 _VCS_OR_URL_PREFIXES = ("git+", "hg+", "svn+", "bzr+", "http://", "https://")
@@ -486,5 +498,515 @@ def parse_setup_py(content: str) -> List[DependencySpec]:
                 manifest_type="setup.py"
             ))
 
+    return specs
+
+
+# ---------------------------------------------------------------------------
+# Multi-Ecosystem Manifest & Lockfile Parsers (npm, Go, Rust, Maven, PHP, Ruby, .NET)
+# ---------------------------------------------------------------------------
+
+def _extract_git_semver(raw_spec: str) -> str:
+    """Extracts a release tag like #v1.2.3 or @v1.2.3 as ==1.2.3, or '*'."""
+    m = re.search(r"[#@](?:v|V)?([0-9]+\.[0-9]+\.[0-9]+(?:[-+][A-Za-z0-9._-]+)?)$", raw_spec.strip())
+    if m:
+        ver_core = m.group(1).split("+", 1)[0]
+        return f"=={ver_core}"
+    return "*"
+
+
+def parse_package_json(content: str) -> List[DependencySpec]:
+    """Parses npm package.json dependency sections."""
+    specs: List[DependencySpec] = []
+    try:
+        data = json.loads(content)
+    except Exception:
+        return specs
+    if not isinstance(data, dict):
+        return specs
+
+    for section in ("dependencies", "devDependencies", "optionalDependencies", "peerDependencies"):
+        sec_obj = data.get(section)
+        if not isinstance(sec_obj, dict):
+            continue
+        for pkg, raw_ver in sec_obj.items():
+            if not isinstance(pkg, str) or not isinstance(raw_ver, str):
+                continue
+            ver_s = raw_ver.strip()
+            if ver_s.startswith(("workspace:", "file:", "link:", "portal:", "catalog:")):
+                continue
+            if ver_s.startswith(("git+", "http://", "https://", "git://")):
+                spec = _extract_git_semver(ver_s)
+            else:
+                spec = ver_s or "*"
+            specs.append(DependencySpec(
+                package_name=normalize_ecosystem_package_name(pkg, "npm"),
+                specifier=spec,
+                raw_line=f'"{pkg}": "{raw_ver}"',
+                line_number=0,
+                manifest_type="package.json",
+                ecosystem="npm",
+            ))
+    return specs
+
+
+def _walk_npm_v1_deps(deps: Dict[str, object], out: List[DependencySpec], seen: set) -> None:
+    for pkg, meta in deps.items():
+        if not isinstance(meta, dict):
+            continue
+        ver = meta.get("version")
+        if isinstance(ver, str) and ver.strip():
+            norm = normalize_ecosystem_package_name(pkg, "npm")
+            ver_clean = ver.strip()
+            if (norm, ver_clean) not in seen:
+                seen.add((norm, ver_clean))
+                out.append(DependencySpec(
+                    package_name=norm,
+                    specifier=f"=={ver_clean}",
+                    raw_line=f'"{pkg}": "{ver_clean}"',
+                    line_number=0,
+                    manifest_type="package-lock.json",
+                    ecosystem="npm",
+                ))
+        nested = meta.get("dependencies")
+        if isinstance(nested, dict):
+            _walk_npm_v1_deps(nested, out, seen)
+
+
+def parse_package_lock_json(content: str) -> List[DependencySpec]:
+    """Parses npm package-lock.json (lockfileVersion 1, 2, and 3)."""
+    specs: List[DependencySpec] = []
+    try:
+        data = json.loads(content)
+    except Exception:
+        return specs
+    if not isinstance(data, dict):
+        return specs
+
+    seen: set = set()
+    packages = data.get("packages")
+    if isinstance(packages, dict):
+        for pkg_path, meta in packages.items():
+            if not isinstance(pkg_path, str) or "node_modules/" not in pkg_path or not isinstance(meta, dict):
+                continue
+            pkg_name = pkg_path.rsplit("node_modules/", 1)[-1].strip()
+            ver = meta.get("version")
+            if pkg_name and isinstance(ver, str) and ver.strip():
+                norm = normalize_ecosystem_package_name(pkg_name, "npm")
+                ver_clean = ver.strip()
+                if (norm, ver_clean) not in seen:
+                    seen.add((norm, ver_clean))
+                    specs.append(DependencySpec(
+                        package_name=norm,
+                        specifier=f"=={ver_clean}",
+                        raw_line=f'"{pkg_path}": "{ver_clean}"',
+                        line_number=0,
+                        manifest_type="package-lock.json",
+                        ecosystem="npm",
+                    ))
+        if specs:
+            return specs
+
+    deps = data.get("dependencies")
+    if isinstance(deps, dict):
+        _walk_npm_v1_deps(deps, specs, seen)
+    return specs
+
+
+def parse_yarn_lock(content: str) -> List[DependencySpec]:
+    """Parses yarn.lock (Yarn Classic v1 and Yarn Berry) resolved package versions."""
+    specs: List[DependencySpec] = []
+    seen: set = set()
+    current_names: List[str] = []
+    header_pkg_re = re.compile(r"^((?:@[^/@\s]+/)?[^@\s:,\"']+)@")
+    version_re = re.compile(r'^\s+version(?:\s*:\s*|\s+)"?([^"\s]+)"?')
+
+    for idx, raw_line in enumerate(content.splitlines(), start=1):
+        stripped = raw_line.strip()
+        if not stripped or stripped.startswith("#"):
+            if not stripped:
+                current_names = []
+            continue
+        if not raw_line[0].isspace() and stripped.endswith(":"):
+            if stripped in ("__metadata:",):
+                current_names = []
+                continue
+            names: List[str] = []
+            for part in stripped[:-1].split(","):
+                tok = part.strip().strip("\"'")
+                m = header_pkg_re.match(tok)
+                if m:
+                    names.append(normalize_ecosystem_package_name(m.group(1), "npm"))
+            current_names = names
+        elif current_names:
+            vm = version_re.match(raw_line)
+            if vm:
+                ver_clean = vm.group(1).strip()
+                for name in current_names:
+                    if (name, ver_clean) not in seen:
+                        seen.add((name, ver_clean))
+                        specs.append(DependencySpec(
+                            package_name=name,
+                            specifier=f"=={ver_clean}",
+                            raw_line=f"{name}@{ver_clean}",
+                            line_number=idx,
+                            manifest_type="yarn.lock",
+                            ecosystem="npm",
+                        ))
+                current_names = []
+    return specs
+
+
+def parse_pnpm_lock_yaml(content: str) -> List[DependencySpec]:
+    """Parses pnpm-lock.yaml resolved package versions across v5-v9 formats."""
+    specs: List[DependencySpec] = []
+    seen: set = set()
+    section: Optional[str] = None
+    v6_plus_re = re.compile(r"^\s{2,4}['\"]?/?((?:@[^/@'\"]+/)?[^/@'\"\s]+)@([0-9][^\s('\":]+)")
+    v5_re = re.compile(r"^\s{2,4}['\"]?/((?:@[^/@'\"]+/)?[^/@'\"]+)/([0-9][^_('\s\":]+)")
+
+    for idx, line in enumerate(content.splitlines(), start=1):
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        if not line[0].isspace() and stripped.endswith(":"):
+            sec_name = stripped[:-1].lower()
+            section = sec_name if sec_name in ("packages", "snapshots") else None
+            continue
+        if section not in ("packages", "snapshots"):
+            continue
+
+        m = v6_plus_re.match(line) or v5_re.match(line)
+        if not m:
+            continue
+        pkg_name = normalize_ecosystem_package_name(m.group(1), "npm")
+        ver_clean = m.group(2).split("(", 1)[0].split("_", 1)[0].strip()
+        if pkg_name and ver_clean and (pkg_name, ver_clean) not in seen:
+            seen.add((pkg_name, ver_clean))
+            specs.append(DependencySpec(
+                package_name=pkg_name,
+                specifier=f"=={ver_clean}",
+                raw_line=stripped,
+                line_number=idx,
+                manifest_type="pnpm-lock.yaml",
+                ecosystem="npm",
+            ))
+    return specs
+
+
+def parse_go_mod(content: str) -> List[DependencySpec]:
+    """Parses Go go.mod module require declarations."""
+    specs: List[DependencySpec] = []
+    in_require = False
+    req_entry_re = re.compile(r"^([^\s]+)\s+(v?[^\s]+)$")
+
+    for idx, raw_line in enumerate(content.splitlines(), start=1):
+        code = raw_line.split("//", 1)[0].strip()
+        if not code:
+            continue
+        if in_require:
+            if code == ")":
+                in_require = False
+                continue
+            target = code
+        elif code == "require (":
+            in_require = True
+            continue
+        elif code.startswith("require ") and "(" not in code:
+            target = code[len("require "):].strip()
+        else:
+            continue
+
+        m = req_entry_re.match(target)
+        if not m:
+            continue
+        mod_path = normalize_ecosystem_package_name(m.group(1), "Go")
+        ver_raw = m.group(2).strip()
+        ver_clean = ver_raw.lstrip("vV").split("+", 1)[0]
+        if mod_path and ver_clean:
+            specs.append(DependencySpec(
+                package_name=mod_path,
+                specifier=f"=={ver_clean}",
+                raw_line=raw_line.strip(),
+                line_number=idx,
+                manifest_type="go.mod",
+                ecosystem="Go",
+            ))
+    return specs
+
+
+def parse_cargo_toml(content: str) -> List[DependencySpec]:
+    """Parses Rust Cargo.toml dependency declarations."""
+    specs: List[DependencySpec] = []
+    try:
+        data = tomllib.loads(content)
+    except Exception:
+        return specs
+
+    sections: List[Dict[str, object]] = []
+    for key in ("dependencies", "dev-dependencies", "build-dependencies"):
+        if isinstance(data.get(key), dict):
+            sections.append(data[key])
+    ws = data.get("workspace")
+    if isinstance(ws, dict) and isinstance(ws.get("dependencies"), dict):
+        sections.append(ws["dependencies"])
+
+    seen: set = set()
+    for sec in sections:
+        for crate_key, val in sec.items():
+            crate_name = crate_key
+            spec_str = "*"
+            if isinstance(val, str):
+                spec_str = val.strip() or "*"
+            elif isinstance(val, dict):
+                if isinstance(val.get("package"), str) and val["package"].strip():
+                    crate_name = val["package"].strip()
+                if isinstance(val.get("version"), str) and val["version"].strip():
+                    spec_str = val["version"].strip()
+                elif isinstance(val.get("tag"), str):
+                    spec_str = _extract_git_semver("#" + val["tag"])
+                elif isinstance(val.get("path"), str):
+                    continue
+            norm = normalize_ecosystem_package_name(crate_name, "crates.io")
+            if norm and (norm, spec_str) not in seen:
+                seen.add((norm, spec_str))
+                specs.append(DependencySpec(
+                    package_name=norm,
+                    specifier=spec_str,
+                    raw_line=f"{crate_key} = {val!r}",
+                    line_number=0,
+                    manifest_type="Cargo.toml",
+                    ecosystem="crates.io",
+                ))
+    return specs
+
+
+def parse_cargo_lock(content: str) -> List[DependencySpec]:
+    """Parses Rust Cargo.lock resolved crate versions."""
+    specs: List[DependencySpec] = []
+    try:
+        data = tomllib.loads(content)
+    except Exception:
+        return specs
+    for pkg in data.get("package", []):
+        if not isinstance(pkg, dict):
+            continue
+        name = pkg.get("name")
+        version = pkg.get("version")
+        if isinstance(name, str) and isinstance(version, str) and name.strip() and version.strip():
+            norm = normalize_ecosystem_package_name(name, "crates.io")
+            specs.append(DependencySpec(
+                package_name=norm,
+                specifier=f"=={version.strip()}",
+                raw_line=f"name = {name}, version = {version}",
+                line_number=0,
+                manifest_type="Cargo.lock",
+                ecosystem="crates.io",
+            ))
+    return specs
+
+
+def _xml_local_name(tag: str) -> str:
+    return tag.rsplit("}", 1)[-1] if "}" in tag else tag
+
+
+def parse_pom_xml(content: str) -> List[DependencySpec]:
+    """Parses Apache Maven pom.xml dependencies with property substitution."""
+    specs: List[DependencySpec] = []
+    try:
+        root = ET.fromstring(content)
+    except Exception:
+        return specs
+
+    props: Dict[str, str] = {}
+    for child in root:
+        lname = _xml_local_name(child.tag)
+        if lname == "version" and child.text:
+            props["project.version"] = child.text.strip()
+        elif lname == "properties":
+            for prop in child:
+                if prop.text:
+                    props[_xml_local_name(prop.tag)] = prop.text.strip()
+
+    def _resolve_prop(raw: str) -> str:
+        def _sub(m: re.Match) -> str:
+            return props.get(m.group(1), m.group(0))
+        return re.sub(r"\$\{([^}]+)\}", _sub, raw.strip())
+
+    for elem in root.iter():
+        if _xml_local_name(elem.tag) != "dependency":
+            continue
+        gid = ""
+        aid = ""
+        ver = ""
+        for sub in elem:
+            sname = _xml_local_name(sub.tag)
+            text = (sub.text or "").strip()
+            if sname == "groupId":
+                gid = text
+            elif sname == "artifactId":
+                aid = text
+            elif sname == "version":
+                ver = _resolve_prop(text)
+        if not (gid and aid):
+            continue
+        coord = normalize_ecosystem_package_name(f"{gid}:{aid}", "Maven")
+        if not ver or "${" in ver:
+            spec = "*"
+        elif any(op in ver for op in ("[", "(", ",", "<", ">")):
+            spec = ver
+        else:
+            spec = f"=={ver.lstrip('vV')}"
+        specs.append(DependencySpec(
+            package_name=coord,
+            specifier=spec,
+            raw_line=f"{coord}:{ver or '*'}",
+            line_number=0,
+            manifest_type="pom.xml",
+            ecosystem="Maven",
+        ))
+    return specs
+
+
+def parse_composer_json(content: str) -> List[DependencySpec]:
+    """Parses PHP Packagist composer.json dependencies."""
+    specs: List[DependencySpec] = []
+    try:
+        data = json.loads(content)
+    except Exception:
+        return specs
+    if not isinstance(data, dict):
+        return specs
+
+    for section in ("require", "require-dev"):
+        sec_obj = data.get(section)
+        if not isinstance(sec_obj, dict):
+            continue
+        for pkg, raw_ver in sec_obj.items():
+            if not isinstance(pkg, str) or not isinstance(raw_ver, str):
+                continue
+            pkg_low = pkg.strip().lower()
+            if pkg_low in ("php", "php-64bit", "hhvm") or pkg_low.startswith(("ext-", "lib-", "composer-")):
+                continue
+            ver_clean = raw_ver.strip() or "*"
+            specs.append(DependencySpec(
+                package_name=normalize_ecosystem_package_name(pkg, "Packagist"),
+                specifier=ver_clean,
+                raw_line=f'"{pkg}": "{raw_ver}"',
+                line_number=0,
+                manifest_type="composer.json",
+                ecosystem="Packagist",
+            ))
+    return specs
+
+
+def parse_composer_lock(content: str) -> List[DependencySpec]:
+    """Parses PHP Packagist composer.lock resolved package versions."""
+    specs: List[DependencySpec] = []
+    try:
+        data = json.loads(content)
+    except Exception:
+        return specs
+    if not isinstance(data, dict):
+        return specs
+
+    seen: set = set()
+    for section in ("packages", "packages-dev"):
+        arr = data.get(section)
+        if not isinstance(arr, list):
+            continue
+        for pkg in arr:
+            if not isinstance(pkg, dict):
+                continue
+            name = pkg.get("name")
+            ver = pkg.get("version")
+            if isinstance(name, str) and isinstance(ver, str) and name.strip() and ver.strip():
+                norm = normalize_ecosystem_package_name(name, "Packagist")
+                ver_clean = ver.strip().lstrip("vV")
+                if (norm, ver_clean) not in seen:
+                    seen.add((norm, ver_clean))
+                    specs.append(DependencySpec(
+                        package_name=norm,
+                        specifier=f"=={ver_clean}",
+                        raw_line=f"{name}@{ver_clean}",
+                        line_number=0,
+                        manifest_type="composer.lock",
+                        ecosystem="Packagist",
+                    ))
+    return specs
+
+
+def parse_gemfile_lock(content: str) -> List[DependencySpec]:
+    """Parses RubyGems Gemfile.lock GEM specs section."""
+    specs: List[DependencySpec] = []
+    seen: set = set()
+    in_gem = False
+    in_specs = False
+    gem_re = re.compile(r"^    ([A-Za-z0-9._-]+)\s+\(([^)]+)\)\s*$")
+
+    for idx, line in enumerate(content.splitlines(), start=1):
+        if not line.strip():
+            in_specs = False
+            continue
+        if not line[0].isspace():
+            in_gem = (line.strip() == "GEM")
+            in_specs = False
+            continue
+        if not in_gem:
+            continue
+        if line.strip() == "specs:":
+            in_specs = True
+            continue
+        if not in_specs:
+            continue
+
+        m = gem_re.match(line)
+        if not m:
+            continue
+        gem_name = normalize_ecosystem_package_name(m.group(1), "RubyGems")
+        ver_tok = m.group(2).strip().split("-", 1)[0]
+        if gem_name and ver_tok and (gem_name, ver_tok) not in seen:
+            seen.add((gem_name, ver_tok))
+            specs.append(DependencySpec(
+                package_name=gem_name,
+                specifier=f"=={ver_tok}",
+                raw_line=line.strip(),
+                line_number=idx,
+                manifest_type="Gemfile.lock",
+                ecosystem="RubyGems",
+            ))
+    return specs
+
+
+def parse_csproj(content: str) -> List[DependencySpec]:
+    """Parses .NET NuGet *.csproj <PackageReference> declarations."""
+    specs: List[DependencySpec] = []
+    try:
+        root = ET.fromstring(content)
+    except Exception:
+        return specs
+
+    for elem in root.iter():
+        if _xml_local_name(elem.tag).lower() != "packagereference":
+            continue
+        include = elem.attrib.get("Include") or elem.attrib.get("include") or ""
+        ver = elem.attrib.get("Version") or elem.attrib.get("version") or ""
+        if not ver:
+            for sub in elem:
+                if _xml_local_name(sub.tag).lower() == "version" and sub.text:
+                    ver = sub.text.strip()
+                    break
+        if not include.strip():
+            continue
+        pkg_norm = normalize_ecosystem_package_name(include, "NuGet")
+        ver_clean = ver.strip()
+        spec = f"=={ver_clean.lstrip('vV')}" if ver_clean and not any(c in ver_clean for c in "[(*,<>=~^") else (ver_clean or "*")
+        specs.append(DependencySpec(
+            package_name=pkg_norm,
+            specifier=spec,
+            raw_line=f'<PackageReference Include="{include}" Version="{ver_clean or "*"}" />',
+            line_number=0,
+            manifest_type=".csproj",
+            ecosystem="NuGet",
+        ))
     return specs
 

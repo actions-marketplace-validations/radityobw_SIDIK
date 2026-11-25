@@ -735,12 +735,17 @@ def build_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--update-db",
         action="store_true",
-        help="Download the latest Google OSV PyPI advisories into the bundled offline database, then exit"
+        help="Download Google OSV advisories (PyPI default, or --ecosystem npm,go,crates,all), then exit"
+    )
+    parser.add_argument(
+        "--ecosystem",
+        default="PyPI",
+        help="OSV ecosystem(s) for --update-db: PyPI (default), comma-separated (npm,go,crates,maven,packagist,rubygems,nuget), or 'all'"
     )
     parser.add_argument(
         "--db-info",
         action="store_true",
-        help="Show advisory database statistics (size, source, snapshot date), then exit"
+        help="Show advisory database statistics (PyPI + multi-ecosystem SQLite cache), then exit"
     )
     parser.add_argument(
         "--plugin",
@@ -755,7 +760,7 @@ def build_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--ml-model",
         default=None,
-        help="Path to verified .skops model artifact for ML triage plugin"
+        help="Bundled ML preset (gradient_boosting, random_forest, extra_trees, logistic_regression, decision_tree) or .skops/.json path"
     )
     parser.add_argument(
         "--ml-sha256",
@@ -837,23 +842,36 @@ def run_cli_with_args(argv: Optional[List[str]] = None, exit_on_finish: bool = T
 
     if args.update_db:
         from sidik.dependency_analyzer import osv_import
-        update_argv = ["--output", args.db] if args.db else []
+        update_argv = ["--ecosystem", args.ecosystem]
+        if args.db:
+            update_argv.extend(["--output", args.db])
         code = osv_import.main(update_argv)
         if exit_on_finish:
             sys.exit(code)
         return code
 
     if args.db_info:
-        from sidik.dependency_analyzer.database import VulnerabilityDatabase
+        from sidik.dependency_analyzer.database import VulnerabilityDatabase, get_user_sqlite_db_path
         db = VulnerabilityDatabase(args.db)
-        print(f"Advisories : {db.advisory_count}")
-        print(f"Packages   : {db.package_count}")
-        print(f"Location   : {db.active_db_source}")
-        print(f"Source     : {db.metadata.get('source', 'built-in only')}")
+        print(f"PyPI Advisories    : {db.advisory_count}")
+        print(f"PyPI Packages      : {db.package_count}")
+        print(f"Location           : {db.active_db_source}")
+        print(f"Source             : {db.metadata.get('source', 'built-in only')}")
         snap_utc = db.metadata.get("generated_utc", "N/A")
         age_days = db.snapshot_age_days()
         age_note = f" ({age_days} days ago)" if age_days is not None else ""
-        print(f"Snapshot   : {snap_utc}{age_note}")
+        print(f"Snapshot           : {snap_utc}{age_note}")
+        print(f"Multi-Eco Built-in : {db.multi_ecosystem_builtin_count} curated offline CVEs (npm, Go, Rust, Java, PHP, Ruby, .NET)")
+        synced = db.get_synced_ecosystems()
+        if synced:
+            print(f"Multi-Eco SQLite   : {get_user_sqlite_db_path()}")
+            for row in synced:
+                print(
+                    f"  - {row['ecosystem']:10s}: {row['advisory_count']} advisories across "
+                    f"{row['package_count']} packages (synced {row['generated_utc']})"
+                )
+        else:
+            print("Multi-Eco Sync     : None cached locally (run 'sidik --update-db --ecosystem npm,go,crates' or '--ecosystem all')")
         if age_days is not None and age_days > 60 and not args.db:
             print("Tip: Snapshot is over 60 days old. Run 'sidik --update-db' to refresh advisories.")
         if exit_on_finish:

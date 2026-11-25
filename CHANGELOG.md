@@ -2,6 +2,13 @@
 
 Seluruh perubahan penting pada paket `sidik` (sebelumnya `sidik-security`) didokumentasikan pada berkas ini.
 
+## [1.4.0] - 2026-11-25
+
+### Ditambahkan & Ditingkatkan (Ekspansi *Polyglot* SAST & SCA 8 Ekosistem Multi-Bahasa)
+- **Pemindaian *Hardcoded Secret* Lintas Bahasa ([`core.py`](sidik/core.py), [`context.py`](sidik/secret_detector/context.py), [`detector.py`](sidik/secret_detector/detector.py)):** Memperluas `DEFAULT_SECRET_EXTENSIONS` untuk mencakup `30+` ekstensi bahasa & konfigurasi (`.js`, `.jsx`, `.mjs`, `.cjs`, `.ts`, `.tsx`, `.vue`, `.svelte`, `.go`, `.rs`, `.java`, `.kt`, `.kts`, `.scala`, `.cs`, `.php`, `.rb`, `.swift`, `.dart`, `.c`, `.cpp`, `.h`, `.sh`, `.bash`, `.zsh`, `.ps1`, `.properties`, `.json`, `.xml`, `.tf`, `.tfvars`, `.hcl`, `.gradle`) serta `Dockerfile`, `.npmrc`, `.pypirc`, `.netrc`; melewati berkas *lockfile* dan bundel terkompresi (`*.min.js`, `*.map`); serta mendukung komentar `//`, `/*`, `<!--`, `-- `, supresi `// nosec` / `// noqa: sidik`, dan referensi *environment variable* lintas bahasa (`process.env`, `os.Getenv`, `System.getenv`, `env::var`, `getenv()`, `ENV[]`).
+- **12 Parser Manifes Baru & Evaluator SemVer ([`parsers.py`](sidik/dependency_analyzer/parsers.py), [`matcher.py`](sidik/dependency_analyzer/matcher.py), [`analyzer.py`](sidik/dependency_analyzer/analyzer.py)):** Menambahkan pengurai `package.json`, `package-lock.json`, `yarn.lock`, `pnpm-lock.yaml` (`npm`), `go.mod` (`Go`), `Cargo.toml`, `Cargo.lock` (`crates.io`), `pom.xml` (`Maven` dengan substitusi `${property}`), `composer.json`, `composer.lock` (`Packagist`), `Gemfile.lock` (`RubyGems`), dan `*.csproj` (`NuGet`), lengkap dengan rentang SemVer (`||`, koma/spasi AND, `x-range`, *hyphen range*, `+incompatible`).
+- **Basis Data OSV SQLite Terindeks & `--update-db --ecosystem` ([`database.py`](sidik/dependency_analyzer/database.py), [`osv_import.py`](sidik/dependency_analyzer/osv_import.py), [`cli.py`](sidik/cli.py), [`i18n.py`](sidik/i18n.py)):** Mempertahankan *wheel* tetap ramping dengan `PyPI` terbundel, menambahkan CVE kritis luring lintas ekosistem (`BUILTIN_MULTI_ECOSYSTEM_ADVISORIES`), indeks SQLite luring berkinerja cepat (`osv_ecosystems.sqlite`) melalui `sidik --update-db --ecosystem npm,go,crates` (atau `all`), rincian multi-ekosistem pada `--db-info`, serta perintah remediasi spesifik bahasa pada [`i18n.py`](sidik/i18n.py) sambil menjaga 100% kompatibilitas dengan `SIDIK-ML` (`sidik>=1.3.4,<2.0.0`).
+
 ## [1.3.8] - 2026-11-25
 
 ### Ditingkatkan (Dukungan Dependensi URL Repositori Git/VCS & *Archive* di Mesin SCA)
