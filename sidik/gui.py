@@ -27,7 +27,7 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 from sidik.core import SecurityScanner
 from sidik.dependency_analyzer.database import get_user_cache_dir
 from sidik.models import ScanReport, Finding
-from sidik.plugins import get_plugin
+from sidik.plugins import get_plugin, resolve_brand_asset_path
 from sidik.reporting.formatter import ReportFormatter
 from sidik.i18n import (
     SUPPORTED_LANGUAGES,
@@ -78,6 +78,14 @@ def _resolve_asset_path(filename: str) -> Optional[str]:
     if os.path.isfile(repo_candidate):
         return repo_candidate
     return None
+
+
+def _resolve_ml_asset_path(filename: str) -> Optional[str]:
+    """Resolves extension branding asset without coupling SIDIK to any plugin package."""
+    return resolve_brand_asset_path(
+        filename,
+        fallback_dirs=(os.path.join(os.path.dirname(BASE_DIR), "SIDIK-ML", "logo"),),
+    )
 
 
 # ==============================================================================
@@ -1005,9 +1013,17 @@ class SecurityAnalyzerGUI:
                        foreground=[("active", COLORS["fg"])])
 
     def _set_app_icon(self):
-        """Loads and applies official SIDIK logo as application window & taskbar icon."""
-        icon_ico = _resolve_asset_path("sidik_icon.ico")
-        icon_png = _resolve_asset_path("SIDIK-nobg-purelogo-dark.png") or _resolve_asset_path("SIDIK-nobg-purelogo.png")
+        """Loads and applies official SIDIK or SIDIK-ML logo as window & taskbar icon."""
+        if self.is_ml_edition:
+            icon_ico = _resolve_ml_asset_path("sidik-ml-icon.ico") or _resolve_asset_path("sidik_icon.ico")
+            icon_png = (
+                _resolve_ml_asset_path("sidik-ml.png")
+                or _resolve_asset_path("SIDIK-nobg-purelogo-dark.png")
+                or _resolve_asset_path("SIDIK-nobg-purelogo.png")
+            )
+        else:
+            icon_ico = _resolve_asset_path("sidik_icon.ico")
+            icon_png = _resolve_asset_path("SIDIK-nobg-purelogo-dark.png") or _resolve_asset_path("SIDIK-nobg-purelogo.png")
 
         if sys.platform.startswith("win") and icon_ico and os.path.exists(icon_ico):
             try:
@@ -1047,7 +1063,14 @@ class SecurityAnalyzerGUI:
         header.pack(fill="x", side="top")
         header.pack_propagate(False)
 
-        logo_path = _resolve_asset_path("SIDIK-nobg-purelogo-dark.png") or _resolve_asset_path("SIDIK-nobg-purelogo.png")
+        if self.is_ml_edition:
+            logo_path = (
+                _resolve_ml_asset_path("sidik-ml.png")
+                or _resolve_asset_path("SIDIK-nobg-purelogo-dark.png")
+                or _resolve_asset_path("SIDIK-nobg-purelogo.png")
+            )
+        else:
+            logo_path = _resolve_asset_path("SIDIK-nobg-purelogo-dark.png") or _resolve_asset_path("SIDIK-nobg-purelogo.png")
         if logo_path and os.path.exists(logo_path) and HAS_PIL:
             try:
                 pil_img = Image.open(logo_path)
@@ -2325,7 +2348,15 @@ class SecurityAnalyzerGUI:
                                 highlightthickness=1, highlightbackground=self.colors["card_border"], padx=24, pady=20)
         scroll_frame.pack(fill="both", expand=True, padx=14, pady=10)
 
-        about_logo_path = _resolve_asset_path("SIDIK-nobg-dark.png") or _resolve_asset_path("SIDIK-nobg.png")
+        if self.is_ml_edition:
+            about_logo_path = (
+                _resolve_ml_asset_path("sidik-ml-white-nobg.png")
+                or _resolve_ml_asset_path("sidik-ml.png")
+                or _resolve_asset_path("SIDIK-nobg-dark.png")
+                or _resolve_asset_path("SIDIK-nobg.png")
+            )
+        else:
+            about_logo_path = _resolve_asset_path("SIDIK-nobg-dark.png") or _resolve_asset_path("SIDIK-nobg.png")
 
         if about_logo_path and os.path.exists(about_logo_path) and HAS_PIL:
             try:

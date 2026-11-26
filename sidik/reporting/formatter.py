@@ -10,6 +10,7 @@ import os
 import sys
 from typing import Dict, Any, Optional
 from sidik.models import ScanReport
+from sidik.plugins import read_brand_asset_bytes
 
 
 # Windows ANSI terminal enablement via built-in ctypes
@@ -541,16 +542,22 @@ class ReportFormatter:
             edition_pill = "<span class=\"edition-badge edition-core\">DETERMINISTIC CORE</span>"
             edition_label = f"Core v{html.escape(SIDIK_VERSION)}"
 
-        # Resolve official SIDIK logo as base64 data URI (prefer bundled sidik.assets over repo-local logo/)
+        # Resolve official logo as base64 data URI (prefer SIDIK-ML branding when is_ml is True)
         logo_bytes: Optional[bytes] = None
-        try:
-            res = resources.files("sidik.assets").joinpath("SIDIK-nobg-purelogo-dark.png")
-            if res.is_file():
-                logo_bytes = res.read_bytes()
-        except Exception:
-            logo_bytes = None
+        base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        if is_ml:
+            logo_bytes = read_brand_asset_bytes(
+                "sidik-ml.png",
+                fallback_dirs=(os.path.join(os.path.dirname(base_dir), "SIDIK-ML", "logo"),),
+            )
         if logo_bytes is None:
-            base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+            try:
+                res = resources.files("sidik.assets").joinpath("SIDIK-nobg-purelogo-dark.png")
+                if res.is_file():
+                    logo_bytes = res.read_bytes()
+            except Exception:
+                logo_bytes = None
+        if logo_bytes is None:
             logo_path = os.path.join(base_dir, "logo", "SIDIK-nobg-purelogo-dark.png")
             if os.path.exists(logo_path):
                 try:
@@ -562,7 +569,8 @@ class ReportFormatter:
         logo_data_uri = f"data:image/png;base64,{base64.b64encode(logo_bytes).decode('ascii')}" if logo_bytes else ""
 
         if logo_data_uri:
-            logo_html = f'<img src="{logo_data_uri}" alt="SIDIK Logo" class="header-logo-img">'
+            logo_alt = "SIDIK-ML Logo" if is_ml else "SIDIK Logo"
+            logo_html = f'<img src="{logo_data_uri}" alt="{logo_alt}" class="header-logo-img">'
             favicon_html = f'<link rel="icon" type="image/png" href="{logo_data_uri}">'
         else:
             logo_html = '<div class="logo-badge">🛡️</div>'
