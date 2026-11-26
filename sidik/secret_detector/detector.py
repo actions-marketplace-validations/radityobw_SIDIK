@@ -16,6 +16,8 @@ from sidik.secret_detector.patterns import SECRET_PATTERNS
 from sidik.secret_detector.entropy import calculate_shannon_entropy, analyze_charset_distribution
 from sidik.secret_detector.context import (
     evaluate_line_context,
+    is_comment_line,
+    is_env_reference_line,
     is_placeholder_or_mock,
     UUID_PATTERN,
     GIT_SHA_PATTERN,
@@ -143,7 +145,7 @@ def _build_secret_candidate(
             "matched_provider_prefix": provider_pfx,
         },
         lexical_context={
-            "is_comment": line.strip().startswith("#"),
+            "is_comment": is_comment_line(line),
             "is_placeholder_or_mock": is_mock,
             "placeholder_reason": mock_reason,
             "has_positive_keyword": "positive_keyword_context" in clues,
@@ -164,9 +166,9 @@ def _build_secret_candidate(
             "is_assignment": ("=" in line or ":=" in line),
             "is_dict_entry": (":" in line and ("{" in line or line.strip().startswith(("'", '"')))),
             "is_function_call": ("(" in line and ")" in line),
-            "is_env_reference": ("os.getenv" in line or "os.environ" in line or "environ.get" in line),
+            "is_env_reference": is_env_reference_line(line),
             "masked_line": masked_line,
-            "prev_line_is_comment": prev_line.strip().startswith("#"),
+            "prev_line_is_comment": is_comment_line(prev_line),
         },
         file_context={
             "file_extension": ext,
@@ -294,7 +296,9 @@ class SecretDetector:
             has_inline_suppression = (
                 "sidik:ignore" in line_lower
                 or "# nosec" in line_lower
+                or "// nosec" in line_lower
                 or "# noqa: sidik" in line_lower
+                or "// noqa: sidik" in line_lower
             )
             if has_inline_suppression and not include_filtered:
                 continue

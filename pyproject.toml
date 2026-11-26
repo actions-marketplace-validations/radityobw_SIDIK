@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "sidik"
 dynamic = ["version"]
-description = "SIDIK: Secret Identification and Dependency Inspection Kit (Lightweight Offline Python SAST & SCA)"
+description = "SIDIK: Secret Identification and Dependency Inspection Kit (Offline Polyglot SAST & Multi-Ecosystem SCA)"
 readme = "README.md"
 requires-python = ">=3.9"
 license = "MIT"
@@ -18,7 +18,7 @@ authors = [
     {name = "Muhammad Fahri Indra Saputra"},
     {name = "Mohamad Hilman"}
 ]
-keywords = ["security", "sast", "sca", "secret-detection", "vulnerability-scanner", "osv", "sarif"]
+keywords = ["security", "sast", "sca", "secret-detection", "vulnerability-scanner", "osv", "sarif", "polyglot", "npm", "golang"]
 classifiers = [
     "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Developers",
@@ -41,6 +41,7 @@ dependencies = [
 
 [project.urls]
 Homepage = "https://github.com/radityobw/SIDIK"
+Documentation = "https://radityobw.github.io/SIDIK/"
 Repository = "https://github.com/radityobw/SIDIK"
 Issues = "https://github.com/radityobw/SIDIK/issues"
 Changelog = "https://github.com/radityobw/SIDIK/blob/main/CHANGELOG.md"

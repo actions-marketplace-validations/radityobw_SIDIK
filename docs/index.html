@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SIDIK - Offline Polyglot SAST &amp; 8-Ecosystem OSV SCA Security Scanner</title>
+  <meta name="description" content="SIDIK is a 100% offline polyglot SAST and 8-ecosystem OSV SCA security scanner covering 30+ languages and 19 manifests (PyPI, npm, Go, Rust, Java, PHP, Ruby, .NET) with CLI, TUI, GUI, and SARIF." />
+  <meta name="keywords" content="SIDIK, polyglot SAST, offline SCA, OSV vulnerability scanner, secret detection, PyPI, npm, Go, Rust, Maven, Packagist, RubyGems, NuGet, SARIF, DevSecOps" />
+  <meta name="robots" content="index, follow" />
+  <link rel="canonical" href="https://radityobw.github.io/SIDIK/" />
+  <link rel="icon" href="favicon.ico" sizes="48x48" />
+  <link rel="icon" type="image/png" href="favicon-48x48.png" sizes="48x48" />
+  <link rel="icon" type="image/png" href="favicon-192x192.png" sizes="192x192" />
+  <link rel="apple-touch-icon" href="apple-touch-icon.png" sizes="180x180" />
+
+  <meta name="google-site-verification" content="6y-5Cff0WkeBj7_uWju39rv0nQnqmEgw81an57VJkGg" />
+
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="SIDIK Security Scanner" />
+  <meta property="og:title" content="SIDIK - Offline Polyglot SAST &amp; 8-Ecosystem OSV SCA Security Scanner" />
+  <meta property="og:description" content="100% offline polyglot SAST (30+ extensions) and 8-ecosystem OSV SCA (19 manifest/lockfile formats) with CLI, TUI, High-DPI GUI, and SARIF v2.1.0." />
+  <meta property="og:url" content="https://radityobw.github.io/SIDIK/" />
+  <meta property="og:image" content="https://radityobw.github.io/SIDIK/og-banner.png" />
+  <meta property="og:image:width" content="1280" />
+  <meta property="og:image:height" content="640" />
+
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="SIDIK - Offline Polyglot SAST &amp; 8-Ecosystem OSV SCA" />
+  <meta name="twitter:description" content="Scan hardcoded secrets across 30+ languages and audit 8 dependency ecosystems offline with zero code upload." />
+  <meta name="twitter:image" content="https://radityobw.github.io/SIDIK/og-banner.png" />
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "WebSite",
+        "name": "SIDIK",
+        "alternateName": "SIDIK Security Scanner",
+        "url": "https://radityobw.github.io/SIDIK/"
+      },
+      {
+        "@type": ["SoftwareApplication", "SoftwareSourceCode"],
+        "name": "SIDIK - Secret Identification and Dependency Inspection Kit",
+        "alternateName": "SIDIK Security Scanner",
+        "description": "100% offline polyglot SAST and 8-ecosystem OSV SCA security scanner covering 30+ languages and 19 manifest/lockfile formats with CLI, TUI, Desktop GUI, and SARIF v2.1.0.",
+        "softwareVersion": "1.4.0",
+        "operatingSystem": "Windows, Linux, macOS",
+        "applicationCategory": "SecurityApplication",
+        "programmingLanguage": ["Python", "JavaScript", "TypeScript", "Go", "Rust", "Java", "PHP", "Ruby", "C#"],
+        "license": "https://opensource.org/licenses/MIT",
+        "url": "https://radityobw.github.io/SIDIK/",
+        "codeRepository": "https://github.com/radityobw/SIDIK",
+        "downloadUrl": "https://pypi.org/project/sidik/",
+        "image": "https://radityobw.github.io/SIDIK/og-banner.png",
+        "sameAs": [
+          "https://github.com/radityobw/SIDIK",
+          "https://pypi.org/project/sidik/",
+          "https://github.com/radityobw/SIDIK-ML",
+          "https://radityobw.github.io/SIDIK-ML/"
+        ],
+        "offers": {
+          "@type": "Offer",
+          "price": "0",
+          "priceCurrency": "USD"
+        }
+      },
+      {
+        "@type": "FAQPage",
+        "mainEntity": [
+          {
+            "@type": "Question",
+            "name": "Is SIDIK only for Python projects?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "No. Since v1.4.0, SIDIK performs polyglot secret detection across 30+ source/config extensions (Python, JS/TS, Go, Rust, Java, Kotlin, C#, PHP, Ruby, Swift, Shell, YAML, TOML, .env, Dockerfile) and offline SCA across 8 dependency ecosystems and 19 manifest/lockfile formats (PyPI, npm, Go, crates.io, Maven, Packagist, RubyGems, NuGet)."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "How does SIDIK operate 100% offline without uploading source code?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "SIDIK ships 35,304 bundled PyPI Google OSV advisories plus curated cross-ecosystem critical CVEs, evaluates PEP 440 and SemVer ranges locally, and optionally caches full ecosystem OSV snapshots in a local SQLite database via sidik --update-db --ecosystem npm,go,crates or --ecosystem all."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "How does SIDIK pair with SIDIK-ML?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "SIDIK exposes a decoupled sidik.plugins entry point and the leakage-free SecretCandidate v1.0.0 contract, allowing SIDIK-ML to score secret alerts using 5 bundled SHA-256-verified Non-ANN ML models with fail-safe CRITICAL protection."
+            }
+          }
+        ]
+      }
+    ]
+  }
+  </script>
+
+  <style>
+    :root {
+      --bg: #0b1120;
+      --bg-card: #111827;
+      --bg-soft: #172033;
+      --border: #1e293b;
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      --accent: #0ea5e9;
+      --accent-strong: #3b82f6;
+      --green: #10b981;
+      --amber: #f59e0b;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, Arial, sans-serif;
+      background: radial-gradient(circle at top right, #102a43 0%, var(--bg) 48%);
+      color: var(--text);
+      line-height: 1.6;
+    }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .wrap { max-width: 1080px; margin: 0 auto; padding: 36px 20px 64px; }
+    .hero {
+      background: linear-gradient(145deg, #0f172a 0%, #111c33 100%);
+      border: 1px solid #1e3a5f;
+      border-radius: 18px;
+      padding: 36px 32px;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 24px;
+      align-items: center;
+      box-shadow: 0 20px 45px rgba(2, 6, 23, 0.55);
+    }
+    @media (max-width: 780px) {
+      .hero { grid-template-columns: 1fr; text-align: center; }
+      .cta-row, .pill-row { justify-content: center; }
+    }
+    .eyebrow {
+      display: inline-block;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #38bdf8;
+      background: rgba(14, 165, 233, 0.12);
+      border: 1px solid rgba(56, 189, 248, 0.35);
+      border-radius: 999px;
+      padding: 4px 12px;
+      margin-bottom: 12px;
+    }
+    h1 { margin: 0 0 10px; font-size: clamp(28px, 4vw, 42px); line-height: 1.15; color: #f8fafc; }
+    .lead { margin: 0 0 18px; color: #cbd5e1; font-size: 17px; max-width: 720px; }
+    .pill-row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
+    .pill {
+      font-size: 13px;
+      font-weight: 600;
+      background: var(--bg-soft);
+      border: 1px solid #293548;
+      color: #e0f2fe;
+      padding: 5px 12px;
+      border-radius: 999px;
+    }
+    .cta-row { display: flex; flex-wrap: wrap; gap: 10px; }
+    .btn {
+      display: inline-block;
+      padding: 10px 18px;
+      border-radius: 10px;
+      font-weight: 600;
+      font-size: 14px;
+      border: 1px solid #334155;
+      color: #f8fafc;
+      background: #1e293b;
+    }
+    .btn.primary {
+      background: linear-gradient(135deg, var(--accent) 0%, var(--accent-strong) 100%);
+      border-color: #38bdf8;
+      color: #ffffff;
+    }
+    .btn:hover { text-decoration: none; filter: brightness(1.08); }
+    .logo-box img { width: 156px; max-width: 100%; height: auto; }
+    section { margin-top: 38px; }
+    h2 {
+      font-size: 22px;
+      color: #f8fafc;
+      margin: 0 0 14px;
+      border-left: 4px solid var(--accent);
+      padding-left: 12px;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+      gap: 14px;
+    }
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 18px;
+    }
+    .card h3 { margin: 0 0 6px; font-size: 16px; color: #38bdf8; }
+    .card p { margin: 0; font-size: 14px; color: var(--muted); }
+    pre {
+      background: #060b16;
+      border: 1px solid #1e293b;
+      border-radius: 12px;
+      padding: 16px 18px;
+      overflow-x: auto;
+      font-size: 13.5px;
+      color: #e2e8f0;
+      margin: 0;
+    }
+    code { font-family: "Cascadia Code", Consolas, "Courier New", monospace; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      font-size: 14px;
+    }
+    th, td { padding: 11px 14px; text-align: left; border-bottom: 1px solid var(--border); }
+    th { background: #162032; color: #bae6fd; font-weight: 700; }
+    tr:last-child td { border-bottom: none; }
+    .eco-badge {
+      display: inline-block;
+      font-weight: 700;
+      font-size: 12px;
+      padding: 2px 8px;
+      border-radius: 6px;
+      background: rgba(16, 185, 129, 0.14);
+      color: #6ee7b7;
+      border: 1px solid rgba(16, 185, 129, 0.35);
+    }
+    .ml-banner {
+      background: linear-gradient(135deg, rgba(245, 158, 11, 0.14) 0%, rgba(234, 88, 12, 0.08) 100%);
+      border: 1px solid rgba(245, 158, 11, 0.45);
+      border-radius: 14px;
+      padding: 20px 24px;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+    }
+    .badge-row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+    .release-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 14px;
+    }
+    .release-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 18px 20px;
+    }
+    .release-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+    .release-tag {
+      font-weight: 700;
+      font-size: 14px;
+      color: #38bdf8;
+      background: rgba(14, 165, 233, 0.14);
+      border: 1px solid rgba(56, 189, 248, 0.35);
+      padding: 2px 10px;
+      border-radius: 999px;
+    }
+    .release-date { font-size: 12.5px; color: var(--muted); }
+    .release-card ul { margin: 0; padding-left: 18px; color: var(--muted); font-size: 13.5px; }
+    .release-card li { margin-bottom: 6px; }
+    footer {
+      margin-top: 48px;
+      padding-top: 20px;
+      border-top: 1px solid var(--border);
+      color: var(--muted);
+      font-size: 13px;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      gap: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="hero">
+      <div>
+        <span class="eyebrow">v1.4.0 | Ocean Blue Edition | MIT License</span>
+        <h1>SIDIK: Offline Polyglot SAST &amp; 8-Ecosystem OSV SCA</h1>
+        <p class="lead">
+          Secret Identification and Dependency Inspection Kit (<strong>SIDIK</strong>) is a lightweight, 100% offline security scanner combining 3-layer secret detection across <strong>30+ programming &amp; config languages</strong> with local Google OSV dependency auditing across <strong>8 ecosystems and 19 manifest/lockfile formats</strong>.
+        </p>
+        <div class="pill-row">
+          <span class="pill">30+ Languages &amp; Configs</span>
+          <span class="pill">8 Ecosystems / 19 Manifests</span>
+          <span class="pill"><!-- AUTO_OSV_COUNT_START -->35,304<!-- AUTO_OSV_COUNT_END --> Bundled PyPI Advisories</span>
+          <span class="pill">SQLite OSV Cache</span>
+          <span class="pill">SARIF v2.1.0 &amp; GitHub Actions</span>
+        </div>
+        <div class="badge-row">
+          <a href="https://pypi.org/project/sidik/"><img src="https://img.shields.io/pypi/v/sidik?label=PyPI&color=0ea5e9&cacheSeconds=3600" alt="PyPI Version" /></a>
+          <a href="https://github.com/radityobw/SIDIK/releases/latest"><img src="https://img.shields.io/github/v/release/radityobw/SIDIK?label=Release&color=0284c7&cacheSeconds=3600" alt="GitHub Release" /></a>
+          <a href="https://github.com/radityobw/SIDIK/actions/workflows/sidik-security.yml"><img src="https://img.shields.io/github/actions/workflow/status/radityobw/SIDIK/sidik-security.yml?label=CI&color=22c55e" alt="CI Status" /></a>
+        </div>
+        <div class="cta-row">
+          <a class="btn primary" href="https://github.com/radityobw/SIDIK">GitHub Repository</a>
+          <a class="btn" href="https://pypi.org/project/sidik/">PyPI Package</a>
+          <a class="btn" href="https://radityobw.github.io/SIDIK-ML/">SIDIK-ML (Non-ANN ML)</a>
+          <a class="btn" href="https://jurnal.mediaakademik.com/index.php/jma/article/view/9068/6647">JMA Paper</a>
+        </div>
+      </div>
+      <div class="logo-box">
+        <img src="logo.png" alt="SIDIK Security Scanner Logo" width="156" height="156" />
+      </div>
+    </header>
+
+    <section>
+      <h2>Polyglot Secret Detection (30+ File Types &amp; Configs)</h2>
+      <div class="grid">
+        <div class="card">
+          <h3>12 Curated Secret Rules (SEC001 - SEC012)</h3>
+          <p>Detects AWS, Google, OpenAI, Stripe, GitHub PAT, Slack, JWT, private keys, database URIs, hardcoded passwords, and generic high-entropy secrets.</p>
+        </div>
+        <div class="card">
+          <h3>Polyglot Lexical &amp; Comment Filtering</h3>
+          <p>Understands Python, JS/TS, Go, Rust, Java, Kotlin, C#, PHP, Ruby, Swift, Shell, YAML, TOML, JSON, .env, .npmrc, and Dockerfile with cross-language env lookups.</p>
+        </div>
+        <div class="card">
+          <h3>Zero Lockfile &amp; Minified Bundle Noise</h3>
+          <p>Automatically skips noisy lockfiles and minified bundles while respecting .sidikignore patterns and # nosec / // nosec / # sidik:ignore inline suppressions.</p>
+        </div>
+        <div class="card">
+          <h3>Triple Interface &amp; 7 Report Formats</h3>
+          <p>Run via One-Shot CLI, Interactive TUI Menu, or High-DPI Bilingual GUI; export Console, SARIF v2.1.0, GitHub Annotations, HTML, Markdown, JSON, and CSV.</p>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>8-Ecosystem Offline SCA Matrix (19 Manifest &amp; Lockfile Formats)</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Ecosystem</th>
+            <th>Supported Manifests &amp; Lockfiles</th>
+            <th>Offline Coverage</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="eco-badge">PyPI</span></td>
+            <td><code>requirements*.txt</code>, <code>pyproject.toml</code>, <code>Pipfile</code>, <code>Pipfile.lock</code>, <code>poetry.lock</code>, <code>uv.lock</code>, <code>setup.py</code></td>
+            <td>35,304 bundled OSV advisories + PEP 440 evaluator</td>
+          </tr>
+          <tr>
+            <td><span class="eco-badge">npm</span></td>
+            <td><code>package.json</code>, <code>package-lock.json</code>, <code>yarn.lock</code>, <code>pnpm-lock.yaml</code></td>
+            <td>Curated offline CVEs + SemVer + SQLite sync</td>
+          </tr>
+          <tr>
+            <td><span class="eco-badge">Go</span></td>
+            <td><code>go.mod</code></td>
+            <td>Curated offline CVEs + <code>v</code> / <code>+incompatible</code> SemVer + SQLite sync</td>
+          </tr>
+          <tr>
+            <td><span class="eco-badge">crates.io</span></td>
+            <td><code>Cargo.toml</code>, <code>Cargo.lock</code></td>
+            <td>Curated offline Rust CVEs + Cargo SemVer + SQLite sync</td>
+          </tr>
+          <tr>
+            <td><span class="eco-badge">Maven</span></td>
+            <td><code>pom.xml</code> (including <code>${property}</code> interpolation)</td>
+            <td>Curated offline Java CVEs (e.g. Log4Shell) + SQLite sync</td>
+          </tr>
+          <tr>
+            <td><span class="eco-badge">Packagist</span></td>
+            <td><code>composer.json</code>, <code>composer.lock</code></td>
+            <td>Curated offline PHP CVEs + SemVer OR/hyphen ranges + SQLite sync</td>
+          </tr>
+          <tr>
+            <td><span class="eco-badge">RubyGems</span></td>
+            <td><code>Gemfile.lock</code></td>
+            <td>Curated offline Ruby CVEs + SQLite sync</td>
+          </tr>
+          <tr>
+            <td><span class="eco-badge">NuGet</span></td>
+            <td><code>*.csproj</code></td>
+            <td>Curated offline .NET CVEs + SQLite sync</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>Quick Start</h2>
+      <pre><code># Install from PyPI (Core CLI or Desktop GUI edition)
+pip install sidik
+pip install "sidik[gui]"
+
+# Scan any polyglot repository offline (secrets + dependencies across 8 ecosystems)
+sidik . --fail-on high
+sidik --target path/to/repo --format sarif --output sidik.sarif
+
+# Sync full Google OSV advisories into the indexed local SQLite cache
+sidik --update-db --ecosystem npm,go,crates
+sidik --update-db --ecosystem all
+sidik --db-info</code></pre>
+    </section>
+
+    <section>
+      <h2>Verified Empirical Benchmarks (Foundational Release)</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Benchmark Suite</th>
+            <th>Scale</th>
+            <th>Measured Result</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>25 Public GitHub Repositories</strong></td>
+            <td>186,876 LOC across 1,193 Python files</td>
+            <td>14 FP (12.84% FPR) in 3.19s (85.7% fewer FPs than Bandit; 3.3x faster than Gitleaks)</td>
+          </tr>
+          <tr>
+            <td><strong>Multi-Manifest PyPI SCA v2</strong></td>
+            <td>200 balanced samples across 39 manifests</td>
+            <td>100/100 TP (Precision 1.00, Recall 1.00, F1 1.00) in 0.33s</td>
+          </tr>
+          <tr>
+            <td><strong>Controlled Secret Ablation</strong></td>
+            <td>100 Python files (50 positive, 50 traps)</td>
+            <td>0 FP, 45 TP (Precision 1.00, Recall 0.90, F1 0.9474, MCC 0.9045)</td>
+          </tr>
+          <tr>
+            <td><strong>Active Memory Overhead</strong></td>
+            <td><code>tracemalloc</code> per-repo profiling</td>
+            <td>0.39 MB average active scan RAM per repository</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <div class="ml-banner">
+        <div>
+          <strong style="color:#fbbf24; font-size:17px;">Need Explainable Non-ANN ML False-Positive Triage?</strong>
+          <p style="margin:6px 0 0; color:#cbd5e1; font-size:14px;">
+            Pair SIDIK with <strong>SIDIK-ML</strong> (<code>pip install sidik-ml</code>) for 5 bundled SHA-256-verified classical ML models, 30 leakage-free features, and fail-safe <code>CRITICAL</code> protection.
+          </p>
+        </div>
+        <a class="btn" style="border-color:#f59e0b; color:#fde68a;" href="https://radityobw.github.io/SIDIK-ML/">Explore SIDIK-ML</a>
+      </div>
+    </section>
+
+    <section>
+      <h2>Latest Releases (Auto-Synced from CHANGELOG.md)</h2>
+      <div class="release-grid">
+        <!-- AUTO_CHANGELOG_START -->
+        <article class="release-card">
+          <div class="release-head">
+            <span class="release-tag">v1.4.0</span>
+            <span class="release-date">2026-11-25</span>
+          </div>
+          <ul>
+            <li>Polyglot secret detection across 30+ languages &amp; configs plus 8-ecosystem offline OSV SCA across 19 manifests.</li>
+          </ul>
+        </article>
+        <!-- AUTO_CHANGELOG_END -->
+      </div>
+    </section>
+
+    <footer>
+      <span>SIDIK Security Analyzer - MIT License - <!-- AUTO_UPDATED_START -->Updated 2026-11-25<!-- AUTO_UPDATED_END --></span>
+      <span><a href="https://github.com/radityobw/SIDIK">GitHub</a> | <a href="https://pypi.org/project/sidik/">PyPI</a> | <a href="https://github.com/radityobw/SIDIK/releases">Releases</a> | <a href="https://radityobw.github.io/SIDIK-ML/">SIDIK-ML</a></span>
+    </footer>
+  </div>
+</body>
+</html>

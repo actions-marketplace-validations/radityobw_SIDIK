@@ -4,14 +4,15 @@
 
 # SIDIK: *Secret Identification and Dependency Inspection Kit*
 
-**Instrumen Analisis Keamanan Statis (*SAST*) & Analisis Komposisi Perangkat Lunak (*SCA*) Luring Terpadu untuk Ekosistem Python**  
-*Unified Offline Static Application Security Testing (SAST) & Software Composition Analysis (SCA) for Python*
+**Instrumen Analisis Keamanan Statis (*SAST*) & Analisis Komposisi Perangkat Lunak (*SCA*) *Polyglot* Luring Terpadu**  
+*Unified Offline Polyglot Static Application Security Testing (SAST) & Multi-Ecosystem Software Composition Analysis (SCA)*
 
 [![Python 3.9+](https://img.shields.io/pypi/pyversions/sidik?color=3b82f6)](https://pypi.org/project/sidik/)
-[![PyPI Version](https://img.shields.io/pypi/v/sidik?label=PyPI&color=0ea5e9)](https://pypi.org/project/sidik/)
-[![GitHub Release](https://img.shields.io/github/v/release/radityobw/SIDIK?label=Release&color=0284c7)](https://github.com/radityobw/SIDIK/releases/latest)
+[![PyPI Version](https://img.shields.io/pypi/v/sidik?label=PyPI&color=0ea5e9&cacheSeconds=3600)](https://pypi.org/project/sidik/)
+[![GitHub Release](https://img.shields.io/github/v/release/radityobw/SIDIK?label=Release&color=0284c7&cacheSeconds=3600)](https://github.com/radityobw/SIDIK/releases/latest)
 [![CI Status](https://img.shields.io/github/actions/workflow/status/radityobw/SIDIK/sidik-security.yml?label=CI&color=22c55e)](https://github.com/radityobw/SIDIK/actions/workflows/sidik-security.yml)
 [![Offline OSV DB](https://img.shields.io/badge/Offline%20OSV%20DB-35%2C304%20Advisories-10b981.svg)](https://github.com/radityobw/SIDIK/blob/main/sidik/data/pypi_advisories.json)
+[![Docs](https://img.shields.io/badge/Docs-GitHub%20Pages-0ea5e9.svg)](https://radityobw.github.io/SIDIK/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-a855f7.svg)](https://github.com/radityobw/SIDIK/blob/main/LICENSE)
 
 </div>
@@ -22,9 +23,9 @@
 
 ## 📌 Ikhtisar Proyek
 
-**SIDIK** (*Secret Identification and Dependency Inspection Kit*) adalah instrumen analisis keamanan statis (*Static Application Security Testing* / SAST) dan analisis komposisi perangkat lunak (*Software Composition Analysis* / SCA) terpadu berbasis Python yang beroperasi **100% secara luring (*offline*)** tanpa mengirim kode sumber ke peladen pihak ketiga (*zero data leakage*).
+**SIDIK** (*Secret Identification and Dependency Inspection Kit*) adalah instrumen analisis keamanan statis (*Static Application Security Testing* / SAST) dan analisis komposisi perangkat lunak (*Software Composition Analysis* / SCA) *polyglot* terpadu yang beroperasi **100% secara luring (*offline*)** tanpa mengirim kode sumber ke peladen pihak ketiga (*zero data leakage*).
 
-Dengan mengintegrasikan **12 aturan ekspresi reguler (*regex*) terkurasi**, **kalkulasi entropi informasi Shannon**, dan **penyaringan konteks leksikal** bersama **basis data kerentanan lokal Google OSV (`35.304` rekaman advisori lintas `13.734` paket PyPI)** yang mendukung **format manifes & *lockfile* Python utama** (`requirements*.txt`, `pyproject.toml`, `Pipfile`/`Pipfile.lock`, `poetry.lock`, `uv.lock`, dan `setup.py`), SIDIK dirancang untuk mengatasi masalah kejenuhan peringatan (*alert fatigue*) sekaligus menghilangkan ketergantungan jaringan internet pada *pipeline* CI/CD maupun jaringan terisolasi (*air-gapped*).
+Dengan mengintegrasikan **12 aturan ekspresi reguler (*regex*) terkurasi**, **kalkulasi entropi informasi Shannon**, dan **penyaringan konteks leksikal lintas `30+` bahasa/konfigurasi** bersama **basis data kerentanan lokal Google OSV (`35.304` rekaman advisori lintas `13.734` paket PyPI terbundel + CVE kritis luring & sinkronisasi SQLite untuk `npm`, `Go`, `crates.io`, `Maven`, `Packagist`, `RubyGems`, dan `NuGet`)** lintas **`19` format manifes & *lockfile*** (`requirements*.txt`, `pyproject.toml`, `Pipfile`/lock, `poetry.lock`, `uv.lock`, `setup.py`, `package.json`/lock, `yarn.lock`, `pnpm-lock.yaml`, `go.mod`, `Cargo.toml`/lock, `pom.xml`, `composer.json`/lock, `Gemfile.lock`, dan `*.csproj`), SIDIK mengatasi *alert fatigue* sekaligus menghilangkan ketergantungan internet pada *pipeline* CI/CD maupun jaringan terisolasi (*air-gapped*).
 
 ### 👥 Tim Peneliti & Pengembang (Kontribusi Setara / *Equal First Authors*)
 Jurusan Informatika, Fakultas Teknik, Universitas Sultan Ageng Tirtayasa (Untirta):
@@ -41,10 +42,10 @@ Jurusan Informatika, Fakultas Teknik, Universitas Sultan Ageng Tirtayasa (Untirt
 
 1. **Deteksi *Hardcoded Secret* 3 Lapis (*Multi-Layer Secret Detection*):**
    - Mendeteksi 12 kategori kredensial sensitif (`SEC001` - `SEC012`: *AWS Access Key ID*, *Google API Key*, *OpenAI API Key*, *Stripe Live Key*, *GitHub Classic & Fine-Grained PAT*, *Slack Token*, *JSON Web Token*, *Hardcoded Password*, *Database Connection URI*, *Asymmetric Private Key*, dan *Generic High-Entropy Secret*).
-   - Dilengkapi penyaring baris cepat (*fast line pre-check*), kalkulasi entropi Shannon, dan penyaringan konteks leksikal untuk mengeliminasi alarm palsu dari variabel tiruan (*mock*, *dummy*, *example*, *sample*, *test fixture*), UUID, maupun *hash* Git SHA-1.
-2. **Analisis Komposisi Perangkat Lunak Luring (*Offline Multi-Manifest SCA*):**
-   - Mendukung manifes dan *lockfile* Python utama: `requirements*.txt`, `pyproject.toml` (PEP 621, `[project.optional-dependencies]`, PEP 735 `[dependency-groups]`, & Poetry), `Pipfile`, `Pipfile.lock`, `poetry.lock`, `uv.lock`, dan `setup.py` (ekstraksi AST aman tanpa eksekusi kode dinamis).
-   - Mengevaluasi spesifikasi versi terkunci (`==`) maupun rentang versi fleksibel (`>=`, `~=`, `<`, `!=`) sesuai standar PEP 440 serta daftar versi eksplisit OSV terhadap **`35.304` rekaman advisori kerentanan PyPI** (termasuk klasifikasi *CVSS v3/v4/v2* dan paket berbahaya `MAL-*`) secara instan tanpa koneksi internet.
+   - Dilengkapi penyaring baris cepat (*fast line pre-check*), entropi Shannon, konteks leksikal *polyglot* (komentar `#`, `//`, `/*`, `<!--`, `-- `, referensi `env` lintas bahasa, serta `Dockerfile` / `.npmrc` / `30+` ekstensi), dan penekan sebaris (`# sidik:ignore`, `# nosec`, `// nosec`).
+2. **Analisis Komposisi Perangkat Lunak Luring 8 Ekosistem (*Offline Multi-Ecosystem SCA*):**
+   - Mendukung **`19` format manifes & *lockfile***: Python (`requirements*.txt`, `pyproject.toml`, `Pipfile`/lock, `poetry.lock`, `uv.lock`, `setup.py`), JavaScript/Node (`package.json`, `package-lock.json`, `yarn.lock`, `pnpm-lock.yaml`), Go (`go.mod`), Rust (`Cargo.toml`, `Cargo.lock`), Java (`pom.xml`), PHP (`composer.json`, `composer.lock`), Ruby (`Gemfile.lock`), dan .NET (`*.csproj`).
+   - Mengevaluasi pin eksak (`==`), PEP 440, dan rentang SemVer (`^`, `~`, `||`, *hyphen*, `x-range`, `+incompatible`) terhadap **`35.304` advisori PyPI terbundel**, CVE kritis luring lintas ekosistem, serta sinkronisasi penuh SQLite lewat `sidik --update-db --ecosystem npm,go,crates` (atau `--ecosystem all`).
 3. **Tiga Mode Antarmuka (*Triple-Interface Ecosystem*):**
    - **Mode 1 - *One-Shot CLI* & Otomasi CI/CD (`python -m sidik` / `action.yml`):** Mendukung *git pre-commit hook* otomatis (`--install-hook`), ambang batas kegagalan (`--fail-on {any,low,medium,high,critical}`), dan integrasi *GitHub Actions*.
    - **Mode 2 - *Interactive CLI Menu* (`run_sidik_cli.bat` / `python sidik.py --cli`):** Antarmuka terminal interaktif berbasis menu bernomor yang mudah dioperasikan tanpa menghafal argumen baris perintah.
@@ -251,8 +252,8 @@ docker run --rm -v "${PWD}:/workspace" ghcr.io/radityobw/sidik:latest --target /
 
 | Repositori | Peran Utama | Versi Terkini | Tautan |
 | :--- | :--- | :---: | :--- |
-| **SIDIK** | Mesin pemindai deterministik SAST & OSV SCA + host *plugin* UI | [![PyPI](https://img.shields.io/pypi/v/sidik?label=PyPI&color=0ea5e9)](https://pypi.org/project/sidik/) | [`github.com/radityobw/SIDIK`](https://github.com/radityobw/SIDIK) |
-| **SIDIK-ML** | Perangkat lunak ekstensi *Explainable Non-ANN ML* & *plugin* | [![PyPI](https://img.shields.io/pypi/v/sidik-ml?label=PyPI&color=f59e0b)](https://pypi.org/project/sidik-ml/) | [`github.com/radityobw/SIDIK-ML`](https://github.com/radityobw/SIDIK-ML) |
+| **SIDIK** | Mesin pemindai deterministik SAST & OSV SCA + host *plugin* UI | [![PyPI](https://img.shields.io/pypi/v/sidik?label=PyPI&color=0ea5e9&cacheSeconds=3600)](https://pypi.org/project/sidik/) | [`github.com/radityobw/SIDIK`](https://github.com/radityobw/SIDIK) |
+| **SIDIK-ML** | Perangkat lunak ekstensi *Explainable Non-ANN ML* & *plugin* | [![PyPI](https://img.shields.io/pypi/v/sidik-ml?label=PyPI&color=f59e0b&cacheSeconds=3600)](https://pypi.org/project/sidik-ml/) | [`github.com/radityobw/SIDIK-ML`](https://github.com/radityobw/SIDIK-ML) |
 
 > **Publikasi Ilmiah:** Artikel penelitian deterministik awal telah diterbitkan di [*Jurnal Media Akademik (JMA)*](https://jurnal.mediaakademik.com/index.php/jma/article/view/9068/6647).
 
@@ -262,20 +263,20 @@ docker run --rm -v "${PWD}:/workspace" ghcr.io/radityobw/sidik:latest --target /
 
 ## 📌 Project Overview
 
-**SIDIK** (*Secret Identification and Dependency Inspection Kit*) is a unified, lightweight Static Application Security Testing (SAST) and Software Composition Analysis (SCA) instrument for Python projects that operates **100% offline** with **zero data leakage**.
+**SIDIK** (*Secret Identification and Dependency Inspection Kit*) is a unified, lightweight **polyglot** Static Application Security Testing (SAST) and **multi-ecosystem** Software Composition Analysis (SCA) instrument that operates **100% offline** with **zero data leakage**.
 
-By combining **12 curated regular expression rules**, **Shannon entropy verification**, and **lexical context filtering** with an **offline Google OSV advisory database (`35,304` vulnerability records across `13,734` PyPI packages)** supporting major Python manifest and lockfile formats (`requirements*.txt`, `pyproject.toml`, `Pipfile`, `Pipfile.lock`, `poetry.lock`, `uv.lock`, and `setup.py`), SIDIK suppresses false alarms while eliminating network latency and internet dependencies in CI/CD pipelines and air-gapped environments.
+By combining **12 curated regular expression rules**, **Shannon entropy verification**, and **polyglot lexical context filtering** (`30+` language/config extensions plus `Dockerfile`) with an **offline Google OSV advisory database** (**`35,304` PyPI advisories across `13,734` packages bundled**, built-in non-Python critical CVEs, and on-demand indexed SQLite sync for **`npm`**, **`Go`**, **`crates.io`**, **`Maven`**, **`Packagist`**, **`RubyGems`**, and **`NuGet`**) across **`19` manifest & lockfile formats**, SIDIK suppresses false alarms while eliminating network latency in CI/CD and air-gapped environments.
 
 ---
 
 ## ✨ Key Features
 
-1. **Three-Layer Secret Detection Engine:**
-   - Covers 12 credential categories (`SEC001` - `SEC012`: AWS, Google Cloud, OpenAI, Stripe, GitHub Classic/Fine-Grained PAT, Slack, JWT, Password Assignments, Database URIs, Private Keys, and Generic Secrets).
-   - Combines a fast line pre-check filter, Shannon entropy calculation, and lexical context analysis to suppress false positives from test fixtures, mock tokens, UUIDs, and Git SHA-1 hashes.
-2. **Offline Multi-Manifest SCA Engine:**
-   - Parses `requirements*.txt`, `pyproject.toml` (PEP 621, optional-dependencies, PEP 735 dependency-groups, & Poetry), `Pipfile`, `Pipfile.lock`, `poetry.lock`, `uv.lock`, and `setup.py` (static AST parsing without code execution).
-   - Evaluates exact pins (`==`), semantic version ranges (`>=`, `~=`, `<`), and explicit OSV affected version lists against **`35,304` offline PyPI advisories** (including CVSS v3/v4/v2 and `MAL-*` malicious package alerts).
+1. **Polyglot Three-Layer Secret Detection Engine:**
+   - Covers 12 credential categories (`SEC001` - `SEC012`) across Python, JS/TS, Go, Rust, Java, Kotlin, C#, PHP, Ruby, Swift, Shell, YAML/TOML/JSON/Properties, `.env*`, `.npmrc`, and `Dockerfile` while automatically skipping lockfiles and minified bundles.
+   - Recognizes `#`, `//`, `/*`, `<!--`, and `-- ` comments, cross-language environment lookups (`process.env`, `os.Getenv`, `System.getenv`, `env::var`), and `# nosec` / `// nosec` / `sidik:ignore` suppressions.
+2. **8-Ecosystem Offline SCA Engine (`19` Manifest Formats):**
+   - Parses Python (`requirements*.txt`, `pyproject.toml`, `Pipfile`/lock, `poetry.lock`, `uv.lock`, `setup.py`), `npm` (`package.json`, `package-lock.json`, `yarn.lock`, `pnpm-lock.yaml`), `Go` (`go.mod`), `Rust` (`Cargo.toml`, `Cargo.lock`), `Maven` (`pom.xml`), `PHP` (`composer.json`, `composer.lock`), `Ruby` (`Gemfile.lock`), and `.NET` (`*.csproj`).
+   - Evaluates PEP 440, SemVer (`^`, `~`, `||`, hyphen/x-ranges, `+incompatible`), Git/VCS URLs, explicit OSV version lists, CVSS v3/v4/v2, and `MAL-*` malware records against bundled PyPI OSV data, curated cross-ecosystem CVEs, and indexed SQLite OSV caches (`sidik --update-db --ecosystem npm,go,crates` or `--ecosystem all`).
 3. **Triple-Interface Ecosystem & 7 Report Formats:**
    - Operates via **One-Shot CLI** (`python -m sidik`, `--install-hook`, `--fail-on`, GitHub Action `action.yml`), **Interactive CLI Menu** (`python sidik.py --cli`), and **High-DPI Bilingual Desktop GUI** (`python sidik.py --gui`).
    - Exports findings to **ANSI Console**, **OASIS SARIF v2.1.0**, **GitHub Actions Annotations**, **Standalone HTML Dashboard**, **Markdown**, **JSON**, and **CSV**.
@@ -311,7 +312,9 @@ sidik --gui                    # or sidik-gui / python -m sidik --gui
 sidik -i --lang en             # or sidik interactive / python -m sidik -i
 sidik .                        # or sidik --target . / sidik file1.py file2.py
 sidik --target . --format html --output audit_report.html --lang en
-sidik --update-db              # Refresh OSV PyPI advisories into user cache
+sidik --update-db                              # Refresh OSV PyPI advisories into user cache
+sidik --update-db --ecosystem npm,go,crates    # Sync additional OSV ecosystems into SQLite cache
+sidik --db-info                                # Inspect bundled PyPI & synced SQLite ecosystems
 
 # 3. Baseline, exclusions, and optional SIDIK-ML plugin
 sidik . --write-baseline .sidik-baseline.json
@@ -334,8 +337,8 @@ docker run --rm -v "${PWD}:/workspace" ghcr.io/radityobw/sidik:latest --target /
 
 | Repository | Primary Role | Latest Version | Link |
 | :--- | :--- | :---: | :--- |
-| **SIDIK** | Deterministic SAST & OSV SCA core + UI plugin host | [![PyPI](https://img.shields.io/pypi/v/sidik?label=PyPI&color=0ea5e9)](https://pypi.org/project/sidik/) | [`github.com/radityobw/SIDIK`](https://github.com/radityobw/SIDIK) |
-| **SIDIK-ML** | Explainable Non-ANN ML extension & `sidik.plugins` adapter | [![PyPI](https://img.shields.io/pypi/v/sidik-ml?label=PyPI&color=f59e0b)](https://pypi.org/project/sidik-ml/) | [`github.com/radityobw/SIDIK-ML`](https://github.com/radityobw/SIDIK-ML) |
+| **SIDIK** | Deterministic SAST & OSV SCA core + UI plugin host | [![PyPI](https://img.shields.io/pypi/v/sidik?label=PyPI&color=0ea5e9&cacheSeconds=3600)](https://pypi.org/project/sidik/) | [`github.com/radityobw/SIDIK`](https://github.com/radityobw/SIDIK) |
+| **SIDIK-ML** | Explainable Non-ANN ML extension & `sidik.plugins` adapter | [![PyPI](https://img.shields.io/pypi/v/sidik-ml?label=PyPI&color=f59e0b&cacheSeconds=3600)](https://pypi.org/project/sidik-ml/) | [`github.com/radityobw/SIDIK-ML`](https://github.com/radityobw/SIDIK-ML) |
 
 > **Scientific Publication:** The foundational deterministic study is published in [*Jurnal Media Akademik (JMA)*](https://jurnal.mediaakademik.com/index.php/jma/article/view/9068/6647).
 

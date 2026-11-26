@@ -570,10 +570,10 @@ TRANSLATIONS: Dict[str, Dict[str, str]] = {
     "about_features_text": {
         "id": (
             "Fitur & Karakteristik Utama:\n"
-            "  1. Deteksi Secret Multi-Lapisan: Regex heuristik (12 aturan) + verifikasi entropi Shannon + filter konteks leksikal.\n"
+            "  1. Deteksi Secret Polyglot Multi-Lapis: Regex heuristik (12 aturan) + entropi Shannon + konteks leksikal lintas 30+ bahasa/konfigurasi (Python, JS/TS, Go, Rust, Java, PHP, Ruby, C#, Dockerfile, YAML, .env).\n"
             "  2. Reduksi Alarm Palsu Teruji: 0 FP pada uji terkontrol (N=100) dan memangkas 85.7% alarm palsu dibanding Bandit pada 25 repo GitHub nyata (14 FP vs 98 FP).\n"
-            "  3. SCA Multi-Manifes Luring: Mendukung 7 format manifes & lockfile Python (requirements*.txt, pyproject.toml, setup.py, Pipfile, Pipfile.lock, poetry.lock, uv.lock) termasuk rentang versi (>=, ~=).\n"
-            "  4. Basis Data Advisori OSV PyPI Luring: Mencakup {advisory_count} rekaman advisori kerentanan lintas {package_count} paket PyPI dengan akurasi 100/100 pada uji SCA v2 (vs Trivy 35/100) dalam 0.33 detik.\n"
+            "  3. SCA 8 Ekosistem & 19 Format Manifes: Mendukung PyPI (requirements*.txt, pyproject.toml, setup.py, Pipfile/lock, poetry.lock, uv.lock), npm (package.json, package-lock.json, yarn.lock, pnpm-lock.yaml), Go (go.mod), Rust (Cargo.toml/lock), Java (pom.xml), PHP (composer.json/lock), Ruby (Gemfile.lock), & .NET (*.csproj).\n"
+            "  4. Basis Data Advisori OSV Luring: Mencakup {advisory_count} rekaman advisori lintas {package_count} paket PyPI terbundel + CVE kritis multi-ekosistem luring + sinkronisasi penuh SQLite via `sidik --update-db --ecosystem ...`.\n"
             "  5. Efisiensi Komputasi Tinggi: Memindai 25 repositori nyata (186.876 baris kode) dalam ~2.5 - 3.2 detik (RAM scan rerata ~0.39 MB/repo; muat DB OSV awal ~116.47 MB).\n"
             "  6. Native Cross-Platform: Mendukung Windows, Linux, dan macOS (CLI, GUI, & Git pre-commit hook) tanpa kebocoran data ke pihak ketiga (zero data leakage).\n\n"
             "Aset Identitas & Desain:\n"
@@ -582,10 +582,10 @@ TRANSLATIONS: Dict[str, Dict[str, str]] = {
         ),
         "en": (
             "Key Features & Architecture:\n"
-            "  1. Multi-Layer Secret Detection: Regex heuristics (12 rules) + Shannon entropy verification + lexical context filtering.\n"
+            "  1. Polyglot Multi-Layer Secret Detection: Regex heuristics (12 rules) + Shannon entropy + lexical context across 30+ languages & configs (Python, JS/TS, Go, Rust, Java, PHP, Ruby, C#, Dockerfile, YAML, .env).\n"
             "  2. Validated False Positive Reduction: 0 FP on controlled test (N=100) and 85.7% fewer false positives than Bandit across 25 real GitHub repos (14 FP vs 98 FP).\n"
-            "  3. Offline Multi-Manifest SCA: Supports 7 Python manifest & lockfile formats (requirements*.txt, pyproject.toml, setup.py, Pipfile, Pipfile.lock, poetry.lock, uv.lock) including version ranges (>=, ~=).\n"
-            "  4. Comprehensive Offline PyPI OSV DB: Covers {advisory_count} vulnerability advisory records across {package_count} PyPI packages achieving 100/100 detection on SCA v2 benchmark in 0.33s.\n"
+            "  3. Multi-Ecosystem Offline SCA (8 Ecosystems, 19 Manifest Formats): Parses PyPI (requirements*.txt, pyproject.toml, setup.py, Pipfile/lock, poetry.lock, uv.lock), npm (package.json/lock, yarn.lock, pnpm-lock.yaml), Go (go.mod), Rust (Cargo.toml/lock), Maven (pom.xml), PHP (composer.json/lock), Ruby (Gemfile.lock), and NuGet (*.csproj).\n"
+            "  4. Comprehensive Offline OSV DB: Bundles {advisory_count} advisories across {package_count} PyPI packages plus curated non-Python CVEs and on-demand multi-ecosystem SQLite sync via `sidik --update-db --ecosystem ...`.\n"
             "  5. High Computational Efficiency: Scans 25 real repositories (186,876 LOC) in ~2.5 - 3.2s (avg scan RAM ~0.39 MB/repo; one-time OSV DB load ~116.47 MB).\n"
             "  6. Native Cross-Platform: Runs on Windows, Linux, and macOS (CLI, GUI, & Git pre-commit hook) with zero data leakage.\n\n"
             "Visual Branding & Licensing:\n"
@@ -725,29 +725,51 @@ def get_secret_remediation(rule_id: str, lang: Optional[str] = None) -> str:
     return rule_data.get(target_lang, rule_data.get(DEFAULT_LANGUAGE, ""))
 
 
+def _ecosystem_upgrade_cmd(package_name: str, fixed_version: str, ecosystem: str) -> str:
+    eco = (ecosystem or "PyPI").strip().lower()
+    if eco == "npm":
+        return f"npm install {package_name}@{fixed_version}"
+    if eco == "go":
+        return f"go get {package_name}@v{fixed_version}"
+    if eco == "crates.io":
+        return f"cargo update -p {package_name} --precise {fixed_version}"
+    if eco == "maven":
+        return f"update {package_name} to {fixed_version} in pom.xml"
+    if eco == "packagist":
+        return f"composer require {package_name}:^{fixed_version}"
+    if eco == "rubygems":
+        return f"bundle update {package_name}"
+    if eco == "nuget":
+        return f"dotnet add package {package_name} --version {fixed_version}"
+    return f"pip install --upgrade {package_name}>={fixed_version}"
+
+
 def get_dependency_remediation(package_name: str, cve_id: str, fixed_version: Optional[str] = None,
-                               manifest_file: Optional[str] = None, lang: Optional[str] = None) -> str:
+                               manifest_file: Optional[str] = None, lang: Optional[str] = None,
+                               ecosystem: str = "PyPI") -> str:
     """Constructs localized remediation guidance for a vulnerable dependency."""
     target_lang = lang or _current_lang
     manifest_desc = f" ({manifest_file})" if manifest_file else ""
 
     if target_lang == LANG_EN:
         if fixed_version:
+            cmd = _ecosystem_upgrade_cmd(package_name, fixed_version, ecosystem)
             return (
-                f"Upgrade dependency '{package_name}' to version >={fixed_version} in your manifest{manifest_desc}. "
-                f"Run `pip install --upgrade {package_name}>={fixed_version}` to resolve {cve_id}."
+                f"Upgrade dependency '{package_name}' ({ecosystem}) to version >={fixed_version} in your manifest{manifest_desc}. "
+                f"Run `{cmd}` to resolve {cve_id}."
             )
         return (
-            f"Review security advisory {cve_id} for package '{package_name}'. "
+            f"Review security advisory {cve_id} for package '{package_name}' ({ecosystem}). "
             f"Upgrade to the latest secure release or consider applying configuration mitigations."
         )
     else:
         if fixed_version:
+            cmd = _ecosystem_upgrade_cmd(package_name, fixed_version, ecosystem)
             return (
-                f"Perbarui dependensi '{package_name}' ke versi >={fixed_version} pada berkas manifest{manifest_desc}. "
-                f"Jalankan `pip install --upgrade {package_name}>={fixed_version}` untuk mengatasi {cve_id}."
+                f"Perbarui dependensi '{package_name}' ({ecosystem}) ke versi >={fixed_version} pada berkas manifest{manifest_desc}. "
+                f"Jalankan `{cmd}` untuk mengatasi {cve_id}."
             )
         return (
-            f"Tinjau advisori kerentanan {cve_id} untuk paket '{package_name}'. "
+            f"Tinjau advisori kerentanan {cve_id} untuk paket '{package_name}' ({ecosystem}). "
             f"Pertimbangkan untuk memperbarui ke rilis aman terbaru atau terapkan mitigasi konfigurasi."
         )

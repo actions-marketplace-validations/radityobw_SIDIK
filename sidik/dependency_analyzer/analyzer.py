@@ -12,7 +12,19 @@ from sidik.dependency_analyzer.parsers import (
     parse_poetry_lock,
     parse_uv_lock,
     parse_setup_py,
-    DependencySpec
+    parse_package_json,
+    parse_package_lock_json,
+    parse_yarn_lock,
+    parse_pnpm_lock_yaml,
+    parse_go_mod,
+    parse_cargo_toml,
+    parse_cargo_lock,
+    parse_pom_xml,
+    parse_composer_json,
+    parse_composer_lock,
+    parse_gemfile_lock,
+    parse_csproj,
+    DependencySpec,
 )
 from sidik.dependency_analyzer.database import VulnerabilityDatabase
 from sidik.dependency_analyzer.matcher import is_version_vulnerable
@@ -26,10 +38,23 @@ MANIFEST_FILENAMES = {
     "Pipfile.lock": parse_pipfile_lock,
     "poetry.lock": parse_poetry_lock,
     "uv.lock": parse_uv_lock,
-    "setup.py": parse_setup_py
+    "setup.py": parse_setup_py,
+    "package.json": parse_package_json,
+    "package-lock.json": parse_package_lock_json,
+    "npm-shrinkwrap.json": parse_package_lock_json,
+    "yarn.lock": parse_yarn_lock,
+    "pnpm-lock.yaml": parse_pnpm_lock_yaml,
+    "go.mod": parse_go_mod,
+    "Cargo.toml": parse_cargo_toml,
+    "Cargo.lock": parse_cargo_lock,
+    "pom.xml": parse_pom_xml,
+    "composer.json": parse_composer_json,
+    "composer.lock": parse_composer_lock,
+    "Gemfile.lock": parse_gemfile_lock,
 }
 
 _REQ_TXT_RE = re.compile(r"^.*requirements(?:[-_.][a-z0-9_.-]+)?\.txt$")
+_ANALYZER_PRUNE_DIRS = {".git", ".venv", "venv", "__pycache__", "node_modules", "target", "vendor", ".next", "dist", "build"}
 
 
 def get_manifest_parser(file_path: str) -> Optional[Callable[[str], List[DependencySpec]]]:
@@ -39,6 +64,8 @@ def get_manifest_parser(file_path: str) -> Optional[Callable[[str], List[Depende
     for supported_name, p_func in MANIFEST_FILENAMES.items():
         if f_lower == supported_name.lower():
             return p_func
+    if f_lower.endswith(".csproj"):
+        return parse_csproj
     if _REQ_TXT_RE.match(f_lower):
         return parse_requirements_txt
     parent_name = os.path.basename(os.path.dirname(os.path.abspath(file_path))).lower()
@@ -78,7 +105,7 @@ class DependencyAnalyzer:
         findings: List[Finding] = []
 
         for spec in specs:
-            advisories = self.db.get_advisories(spec.package_name)
+            advisories = self.db.get_advisories(spec.package_name, ecosystem=spec.ecosystem)
             reported: set[str] = set()
             for adv in advisories:
                 cve_id = adv.get("cve") or adv["id"]
@@ -88,6 +115,7 @@ class DependencyAnalyzer:
                     spec.specifier,
                     adv["vulnerable_specifier"],
                     vulnerable_versions=adv.get("vulnerable_versions"),
+                    ecosystem=spec.ecosystem,
                 )
                 if vuln:
                     reported.add(cve_id)
@@ -103,7 +131,8 @@ class DependencyAnalyzer:
                         package_name=spec.package_name,
                         cve_id=cve_id,
                         fixed_version=fixed_ver,
-                        manifest_file=manifest_name
+                        manifest_file=manifest_name,
+                        ecosystem=spec.ecosystem,
                     )
 
                     findings.append(Finding(
@@ -119,6 +148,7 @@ class DependencyAnalyzer:
                         confidence=ConfidenceScore.HIGH,
                         remediation=remediation,
                         metadata={
+                            "ecosystem": spec.ecosystem,
                             "package": spec.package_name,
                             "declared_version": spec.specifier,
                             "cve": cve_id,
@@ -135,7 +165,8 @@ class DependencyAnalyzer:
     def scan_directory(self, dir_path: str) -> List[Finding]:
         """Finds and scans all dependency manifests within a directory tree."""
         findings: List[Finding] = []
-        for root, _, files in os.walk(dir_path):
+        for root, dirs, files in os.walk(dir_path):
+            dirs[:] = [d for d in dirs if d not in _ANALYZER_PRUNE_DIRS]
             for file in files:
                 full_path = os.path.join(root, file)
                 if is_manifest_file(full_path):

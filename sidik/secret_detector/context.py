@@ -61,6 +61,35 @@ def is_placeholder_or_mock(candidate: str, surrounding_line: str) -> Tuple[bool,
     return False, ""
 
 
+def is_comment_line(line: str) -> bool:
+    """Returns True when a trimmed line represents a source/config comment across common languages."""
+    stripped = line.strip()
+    return (
+        stripped.startswith(("#", "//", "/*", "<!--", "-- "))
+        or stripped == "*"
+        or stripped.startswith("* ")
+    )
+
+
+def is_env_reference_line(line: str) -> bool:
+    """Returns True when line reads an environment variable across supported programming languages."""
+    return bool(
+        re.search(
+            r"(?:"
+            r"os\.getenv|os\.environ|environ\.get|"
+            r"process\.env|import\.meta\.env|Deno\.env|"
+            r"os\.Getenv|os\.LookupEnv|"
+            r"System\.getenv|"
+            r"env::var|env!\(|"
+            r"Environment\.GetEnvironmentVariable|"
+            r"getenv\(|[$]_(?:ENV|SERVER)\[|"
+            r"ENV\[|ENV\.fetch"
+            r")",
+            line,
+        )
+    )
+
+
 def evaluate_line_context(candidate: str, line: str, rule: Dict[str, Any], entropy: float) -> Tuple[bool, ConfidenceScore, Dict[str, Any]]:
     """Evaluates lexical context around the candidate to determine validity and assign confidence."""
     metadata = {
@@ -69,8 +98,7 @@ def evaluate_line_context(candidate: str, line: str, rule: Dict[str, Any], entro
         "context_clues": []
     }
 
-    stripped_line = line.strip()
-    if stripped_line.startswith("#"):
+    if is_comment_line(line):
         metadata["is_comment"] = True
         metadata["context_clues"].append("contained_in_comment")
 

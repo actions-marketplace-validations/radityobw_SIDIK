@@ -11,6 +11,7 @@ import io
 import json
 import math
 import os
+import sqlite3
 import sys
 import time
 import urllib.request
@@ -20,10 +21,20 @@ from typing import Any, Dict, Iterable, List, Optional, Tuple
 from packaging.specifiers import InvalidSpecifier, SpecifierSet
 from packaging.version import InvalidVersion, Version
 
-from sidik.dependency_analyzer.database import get_user_db_path
-from sidik.dependency_analyzer.parsers import normalize_package_name
+from sidik.dependency_analyzer.database import (
+    SUPPORTED_ECOSYSTEMS,
+    canonicalize_ecosystem,
+    get_user_db_path,
+    get_user_sqlite_db_path,
+)
+from sidik.dependency_analyzer.matcher import _clean_semver_token
+from sidik.dependency_analyzer.parsers import normalize_ecosystem_package_name
 
 OSV_PYPI_URL = "https://osv-vulnerabilities.storage.googleapis.com/PyPI/all.zip"
+OSV_ECOSYSTEM_URLS: Dict[str, str] = {
+    eco: f"https://osv-vulnerabilities.storage.googleapis.com/{eco}/all.zip"
+    for eco in SUPPORTED_ECOSYSTEMS
+}
 DEFAULT_OUTPUT_PATH = os.path.join(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "pypi_advisories.json"
 )
@@ -228,16 +239,21 @@ def events_to_specifiers(events: List[Dict[str, Any]]) -> List[Tuple[str, Option
     results: List[Tuple[str, Optional[str]]] = []
     for introduced, upper, fixed in intervals:
         clauses: List[str] = []
-        if introduced != "0":
-            clauses.append(">=" + introduced)
+        clean_intro = _clean_semver_token(introduced) if introduced != "0" else "0"
+        if clean_intro and clean_intro != "0":
+            clauses.append(">=" + clean_intro)
         if upper:
-            clauses.append(upper)
+            op = "<=" if upper.startswith("<=") else "<"
+            ver_u = upper[len(op):]
+            clean_u = _clean_semver_token(ver_u)
+            clauses.append(op + clean_u)
         specifier = ",".join(clauses) if clauses else ">=0"
         try:
             SpecifierSet(specifier)
         except InvalidSpecifier:
             continue
-        results.append((specifier, fixed))
+        clean_fixed = _clean_semver_token(fixed) if fixed else None
+        results.append((specifier, clean_fixed))
     return results
 
 
@@ -261,13 +277,17 @@ def _summary_and_details(record: Dict[str, Any]) -> Tuple[str, str]:
     return summary, details
 
 
-def convert_osv_record(record: Dict[str, Any]) -> Tuple[List[Dict[str, Any]], str]:
-    """Converts one OSV record into SIDIK advisories. Returns (advisories, severity_source)."""
+def convert_osv_record(record: Dict[str, Any], ecosystem: str = "PyPI") -> Tuple[List[Dict[str, Any]], str]:
+    """Converts one OSV record into SIDIK advisories for target ecosystem. Returns (advisories, severity_source)."""
     if record.get("withdrawn"):
         return [], "default"
     record_id = str(record.get("id", ""))
     if not record_id:
         return [], "default"
+
+    target_eco = canonicalize_ecosystem(ecosystem) or ecosystem
+    target_eco_low = target_eco.lower()
+    is_pypi = target_eco_low == "pypi"
 
     severity, severity_source = extract_severity(record)
     cve = _pick_cve(record)
@@ -277,14 +297,14 @@ def convert_osv_record(record: Dict[str, Any]) -> Tuple[List[Dict[str, Any]], st
     seen: set[Tuple[str, str]] = set()
     for affected in record.get("affected", []) or []:
         package = affected.get("package") or {}
-        if str(package.get("ecosystem", "")).lower() != "pypi":
+        if str(package.get("ecosystem", "")).lower() != target_eco_low:
             continue
-        name = normalize_package_name(str(package.get("name", "")))
+        name = normalize_ecosystem_package_name(str(package.get("name", "")), target_eco)
         if not name:
             continue
         range_hits = 0
         for rng in affected.get("ranges", []) or []:
-            if str(rng.get("type", "")).upper() != "ECOSYSTEM":
+            if str(rng.get("type", "")).upper() not in ("ECOSYSTEM", "SEMVER"):
                 continue
             for specifier, fixed in events_to_specifiers(rng.get("events", []) or []):
                 range_hits += 1
@@ -292,7 +312,7 @@ def convert_osv_record(record: Dict[str, Any]) -> Tuple[List[Dict[str, Any]], st
                 if key in seen:
                     continue
                 seen.add(key)
-                advisories.append({
+                adv_entry: Dict[str, Any] = {
                     "id": record_id,
                     "cve": cve,
                     "package": name,
@@ -301,14 +321,17 @@ def convert_osv_record(record: Dict[str, Any]) -> Tuple[List[Dict[str, Any]], st
                     "severity": severity,
                     "summary": summary,
                     "details": details,
-                })
+                }
+                if not is_pypi:
+                    adv_entry["ecosystem"] = target_eco
+                advisories.append(adv_entry)
 
         if range_hits == 0:
             raw_versions = affected.get("versions") or []
             parsed_vers: List[Tuple[Version, str]] = []
             seen_ver_strs: set[str] = set()
             for rv in raw_versions:
-                v_str = str(rv).strip()
+                v_str = _clean_semver_token(str(rv).strip())
                 if not v_str or v_str in seen_ver_strs:
                     continue
                 try:
@@ -326,7 +349,7 @@ def convert_osv_record(record: Dict[str, Any]) -> Tuple[List[Dict[str, Any]], st
                     key = (name, spec_str)
                     if key not in seen:
                         seen.add(key)
-                        advisories.append({
+                        adv_single: Dict[str, Any] = {
                             "id": record_id,
                             "cve": cve,
                             "package": name,
@@ -335,13 +358,16 @@ def convert_osv_record(record: Dict[str, Any]) -> Tuple[List[Dict[str, Any]], st
                             "severity": severity,
                             "summary": summary,
                             "details": details,
-                        })
+                        }
+                        if not is_pypi:
+                            adv_single["ecosystem"] = target_eco
+                        advisories.append(adv_single)
                 else:
                     spec_str = f"explicit({len(valid_versions)} versions)"
                     key = (name, spec_str)
                     if key not in seen:
                         seen.add(key)
-                        advisories.append({
+                        adv_multi: Dict[str, Any] = {
                             "id": record_id,
                             "cve": cve,
                             "package": name,
@@ -351,12 +377,21 @@ def convert_osv_record(record: Dict[str, Any]) -> Tuple[List[Dict[str, Any]], st
                             "severity": severity,
                             "summary": summary,
                             "details": details,
-                        })
+                        }
+                        if not is_pypi:
+                            adv_multi["ecosystem"] = target_eco
+                        advisories.append(adv_multi)
     return advisories, severity_source
 
 
-def build_database(records: Iterable[Dict[str, Any]], source: str, source_sha256: str) -> Dict[str, Any]:
+def build_database(
+    records: Iterable[Dict[str, Any]],
+    source: str,
+    source_sha256: str,
+    ecosystem: str = "PyPI",
+) -> Dict[str, Any]:
     """Builds the on-disk payload (metadata plus sorted advisory list) from OSV records."""
+    target_eco = canonicalize_ecosystem(ecosystem) or ecosystem
     advisories: List[Dict[str, Any]] = []
     record_count = 0
     skipped = 0
@@ -370,7 +405,7 @@ def build_database(records: Iterable[Dict[str, Any]], source: str, source_sha256
     }
     for record in records:
         record_count += 1
-        converted, sev_source = convert_osv_record(record)
+        converted, sev_source = convert_osv_record(record, ecosystem=target_eco)
         if not converted:
             skipped += 1
             continue
@@ -380,6 +415,7 @@ def build_database(records: Iterable[Dict[str, Any]], source: str, source_sha256
     advisories.sort(key=lambda a: (a["package"], a["id"], a["vulnerable_specifier"]))
     return {
         "metadata": {
+            "ecosystem": target_eco,
             "source": source,
             "source_sha256": source_sha256,
             "generated_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
@@ -426,36 +462,146 @@ def write_database(payload: Dict[str, Any], output_path: str) -> None:
         json.dump(payload, f, ensure_ascii=False, separators=(",", ":"))
 
 
+def write_sqlite_ecosystem(
+    advisories: List[Dict[str, Any]],
+    metadata: Dict[str, Any],
+    ecosystem: str,
+    sqlite_path: Optional[str] = None,
+) -> str:
+    """Stores one ecosystem's OSV advisories inside the indexed SQLite user cache."""
+    resolved = sqlite_path or get_user_sqlite_db_path()
+    os.makedirs(os.path.dirname(os.path.abspath(resolved)), exist_ok=True)
+    conn = sqlite3.connect(resolved)
+    try:
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS advisories ("
+            "ecosystem TEXT NOT NULL, "
+            "package TEXT NOT NULL, "
+            "id TEXT NOT NULL, "
+            "cve TEXT, "
+            "vulnerable_specifier TEXT NOT NULL, "
+            "vulnerable_versions TEXT, "
+            "fixed_version TEXT, "
+            "severity TEXT, "
+            "summary TEXT, "
+            "details TEXT)"
+        )
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_adv_eco_pkg ON advisories(lower(ecosystem), package)"
+        )
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS ecosystem_meta ("
+            "ecosystem TEXT PRIMARY KEY, "
+            "advisory_count INTEGER, "
+            "package_count INTEGER, "
+            "generated_utc TEXT, "
+            "source TEXT)"
+        )
+        with conn:
+            conn.execute("DELETE FROM advisories WHERE lower(ecosystem) = lower(?)", (ecosystem,))
+            conn.executemany(
+                "INSERT INTO advisories VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                [
+                    (
+                        ecosystem,
+                        a["package"],
+                        a["id"],
+                        a.get("cve"),
+                        a["vulnerable_specifier"],
+                        json.dumps(a["vulnerable_versions"]) if "vulnerable_versions" in a else None,
+                        a.get("fixed_version"),
+                        a.get("severity"),
+                        a.get("summary"),
+                        a.get("details"),
+                    )
+                    for a in advisories
+                ],
+            )
+            conn.execute(
+                "INSERT OR REPLACE INTO ecosystem_meta (ecosystem, advisory_count, package_count, generated_utc, source) "
+                "VALUES (?, ?, ?, ?, ?)",
+                (
+                    ecosystem,
+                    int(metadata.get("advisory_count", len(advisories))),
+                    int(metadata.get("package_count", 0)),
+                    str(metadata.get("generated_utc", "")),
+                    str(metadata.get("source", "")),
+                ),
+            )
+    finally:
+        conn.close()
+    return resolved
+
+
 def import_osv(input_zip: Optional[str] = None, output_path: Optional[str] = None,
-               url: str = OSV_PYPI_URL) -> Dict[str, Any]:
-    """Downloads (or reads) the OSV PyPI archive and writes the SIDIK database. Returns metadata."""
-    resolved_output = output_path or get_user_db_path()
+               url: str = OSV_PYPI_URL, ecosystem: str = "PyPI") -> Dict[str, Any]:
+    """Downloads (or reads) an OSV ecosystem archive and writes JSON (PyPI) or SQLite cache. Returns metadata."""
+    target_eco = canonicalize_ecosystem(ecosystem) or ecosystem
+    resolved_url = url if (target_eco == "PyPI" or url != OSV_PYPI_URL) else OSV_ECOSYSTEM_URLS.get(target_eco, url)
     if input_zip:
         with open(input_zip, "rb") as f:
             raw = f.read()
         source = os.path.basename(input_zip)
     else:
-        raw = download_osv_zip(url)
-        source = url
-    payload = build_database(read_zip_records(raw), source, hashlib.sha256(raw).hexdigest())
-    write_database(payload, resolved_output)
+        raw = download_osv_zip(resolved_url)
+        source = resolved_url
+    payload = build_database(read_zip_records(raw), source, hashlib.sha256(raw).hexdigest(), ecosystem=target_eco)
+    if target_eco.lower() == "pypi":
+        resolved_output = output_path or get_user_db_path()
+        write_database(payload, resolved_output)
+        payload["metadata"]["output_path"] = resolved_output
+    else:
+        sqlite_out = write_sqlite_ecosystem(
+            payload["advisories"], payload["metadata"], target_eco, sqlite_path=output_path
+        )
+        payload["metadata"]["output_path"] = sqlite_out
     return payload["metadata"]
 
 
 def main(argv: Optional[List[str]] = None) -> int:
-    default_out = get_user_db_path()
-    parser = argparse.ArgumentParser(description="Import the Google OSV PyPI dump into the SIDIK offline database")
+    parser = argparse.ArgumentParser(description="Import Google OSV dumps into SIDIK offline databases")
     parser.add_argument("--input", default=None, help="Local all.zip path (skips download)")
-    parser.add_argument("--output", default=default_out, help="Output JSON path (defaults to user cache directory)")
+    parser.add_argument("--output", default=None, help="Output JSON/SQLite path (defaults to user cache directory)")
     parser.add_argument("--url", default=OSV_PYPI_URL, help="OSV archive URL")
+    parser.add_argument(
+        "--ecosystem",
+        default="PyPI",
+        help="Target OSV ecosystem(s), comma-separated or 'all' (PyPI, npm, Go, crates.io, Maven, Packagist, RubyGems, NuGet)",
+    )
     args = parser.parse_args(argv)
+
+    raw_eco = (args.ecosystem or "PyPI").strip()
+    if raw_eco.lower() == "all":
+        ecos = list(SUPPORTED_ECOSYSTEMS)
+    else:
+        ecos = []
+        for part in raw_eco.split(","):
+            tok = part.strip()
+            if not tok:
+                continue
+            canon = canonicalize_ecosystem(tok)
+            if not canon:
+                print(
+                    f"Error: Unsupported ecosystem '{tok}'. Supported: {', '.join(SUPPORTED_ECOSYSTEMS)}",
+                    file=sys.stderr,
+                )
+                return 1
+            if canon not in ecos:
+                ecos.append(canon)
+        if not ecos:
+            ecos = ["PyPI"]
+
     try:
-        meta = import_osv(args.input, args.output, args.url)
-    except (OSError, zipfile.BadZipFile) as exc:
+        results = []
+        for eco in ecos:
+            eco_url = OSV_ECOSYSTEM_URLS.get(eco, args.url) if args.url == OSV_PYPI_URL else args.url
+            meta = import_osv(args.input, args.output, eco_url, ecosystem=eco)
+            results.append(meta)
+    except (OSError, zipfile.BadZipFile, ValueError) as exc:
         print(f"Error: {exc}", file=sys.stderr)
         return 1
-    print(json.dumps(meta, indent=2))
-    print(f"Saved: {args.output}")
+
+    print(json.dumps(results[0] if len(results) == 1 else results, indent=2))
     return 0
 
 
