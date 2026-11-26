@@ -11,11 +11,11 @@ const KEYFRAMES = [
 ];
 
 const CHAPTER_LABELS = {
-  overview: '01 / OVERVIEW',
-  sast: '02 / POLYGLOT SAST',
-  sca: '03 / 8-ECOSYSTEM SCA',
-  benchmarks: '04 / BENCHMARKS',
-  releases: '05 / RELEASES',
+  overview: '01 Overview',
+  sast: '02 Polyglot SAST',
+  sca: '03 8-Ecosystem SCA',
+  benchmarks: '04 Benchmarks',
+  releases: '05 Releases',
 };
 
 const MESH_EXPLODE_OFFSETS = {
@@ -93,7 +93,7 @@ function initShowcase() {
   keyLight.position.set(3.2, 4.2, 5.0);
   scene.add(keyLight);
 
-  const oceanRim = new THREE.SpotLight(0x0ea5e9, 11.0, 18, Math.PI / 3.0, 0.55, 1.1);
+  const oceanRim = new THREE.SpotLight(0x0a84ff, 11.0, 18, Math.PI / 3.0, 0.55, 1.1);
   oceanRim.position.set(-2.8, 2.2, -3.0);
   scene.add(oceanRim);
 

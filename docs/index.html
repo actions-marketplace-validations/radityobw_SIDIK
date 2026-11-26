@@ -32,7 +32,7 @@
 
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
 
   <script type="importmap">
   {
@@ -114,35 +114,31 @@
 
   <style>
     :root {
-      --bg: #070b12;
-      --surface: #0d1420;
-      --surface-2: #121c2d;
-      --border: #192334;
-      --border-strong: #293a54;
-      --text: #e6eef8;
-      --muted: #8fa3bc;
-      --accent: #0284c7;
-      --accent-bright: #38bdf8;
-      --amber: #f59e0b;
-      --green: #10b981;
-      --mono: "IBM Plex Mono", Consolas, monospace;
-      --sans: "IBM Plex Sans", -apple-system, BlinkMacSystemFont, sans-serif;
+      --bg: #000000;
+      --surface: #111318;
+      --surface-2: #171a21;
+      --hairline: rgba(255, 255, 255, 0.10);
+      --text: #f5f5f7;
+      --muted: #86868b;
+      --accent: #0a84ff;
+      --gold: #ffd60a;
+      --green: #30d158;
+      --mono: "SF Mono", ui-monospace, "JetBrains Mono", Menlo, monospace;
+      --display: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter", "Helvetica Neue", sans-serif;
+      --sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", "Helvetica Neue", sans-serif;
     }
     * { box-sizing: border-box; }
     html { scroll-behavior: smooth; }
     body {
       margin: 0;
       font-family: var(--sans);
-      background-color: var(--bg);
-      background-image:
-        linear-gradient(to right, rgba(56, 189, 248, 0.03) 1px, transparent 1px),
-        linear-gradient(to bottom, rgba(56, 189, 248, 0.03) 1px, transparent 1px);
-      background-size: 56px 56px;
+      background: var(--bg);
       color: var(--text);
-      line-height: 1.6;
+      line-height: 1.58;
       -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
     }
-    a { color: var(--accent-bright); text-decoration: none; }
+    a { color: #64b5ff; text-decoration: none; }
     a:hover { text-decoration: underline; }
 
     .progress-track {
@@ -151,14 +147,14 @@
       left: 0;
       right: 0;
       height: 2px;
-      background: rgba(255, 255, 255, 0.06);
+      background: transparent;
       z-index: 60;
       pointer-events: none;
     }
     #scroll-progress-bar {
       width: 100%;
       height: 100%;
-      background: linear-gradient(90deg, var(--accent-bright) 0%, var(--amber) 100%);
+      background: var(--accent);
       transform-origin: left center;
       transform: scaleX(0);
     }
@@ -167,88 +163,89 @@
       position: sticky;
       top: 0;
       z-index: 40;
-      background: rgba(7, 11, 18, 0.92);
-      backdrop-filter: blur(8px);
-      border-bottom: 1px solid var(--border);
+      height: 52px;
+      background: rgba(0, 0, 0, 0.72);
+      backdrop-filter: saturate(180%) blur(20px);
+      -webkit-backdrop-filter: saturate(180%) blur(20px);
+      border-bottom: 1px solid var(--hairline);
     }
     .topbar-inner {
-      max-width: 1240px;
+      max-width: 1180px;
+      height: 100%;
       margin: 0 auto;
-      padding: 12px 24px;
+      padding: 0 28px;
       display: flex;
       align-items: center;
       justify-content: space-between;
       gap: 16px;
-      font-family: var(--mono);
-      font-size: 12px;
+      font-size: 13px;
       color: var(--muted);
     }
     .brand-mark {
       display: inline-flex;
       align-items: center;
-      gap: 10px;
+      gap: 8px;
       color: var(--text);
       font-weight: 600;
-      letter-spacing: 0.06em;
+      font-size: 14px;
+      letter-spacing: -0.01em;
     }
-    .brand-sq { width: 9px; height: 9px; background: var(--accent-bright); display: inline-block; }
-    .topbar-nav { display: flex; flex-wrap: wrap; gap: 18px; }
-    .topbar-nav a { color: var(--muted); }
+    .brand-mark:hover { text-decoration: none; }
+    .brand-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); display: inline-block; }
+    .topbar-nav { display: flex; flex-wrap: wrap; gap: 24px; }
+    .topbar-nav a { color: var(--muted); font-weight: 500; transition: color 0.15s ease; }
     .topbar-nav a:hover { color: var(--text); text-decoration: none; }
 
-    .wrap { max-width: 1240px; margin: 0 auto; padding: 36px 24px 72px; }
+    .wrap { max-width: 1180px; margin: 0 auto; padding: 56px 28px 84px; }
     .instrument-grid {
       display: grid;
-      grid-template-columns: minmax(0, 1.16fr) minmax(350px, 0.84fr);
-      gap: 40px;
+      grid-template-columns: minmax(0, 1.08fr) minmax(360px, 0.92fr);
+      gap: 56px;
       align-items: start;
     }
-    .vitrine-col { position: sticky; top: 74px; order: 2; }
+    .vitrine-col { position: sticky; top: 84px; order: 2; }
     .chapters-col { order: 1; min-width: 0; }
 
     #stage-3d {
       position: relative;
-      height: min(540px, calc(100vh - 110px));
-      min-height: 400px;
-      background: radial-gradient(circle at 50% 45%, #112036 0%, #090e17 75%);
-      border: 1px solid var(--border);
+      height: min(560px, calc(100vh - 120px));
+      min-height: 420px;
+      background: radial-gradient(circle at 50% 45%, #0e1726 0%, #06090f 74%, #020305 100%);
+      border: 1px solid var(--hairline);
+      border-radius: 28px;
       overflow: hidden;
       cursor: grab;
       user-select: none;
       touch-action: pan-y;
     }
     #stage-3d:active { cursor: grabbing; }
-    .hud-corner {
-      position: absolute;
-      width: 10px;
-      height: 10px;
-      pointer-events: none;
-      z-index: 4;
-    }
-    .hud-corner.tl { top: 10px; left: 10px; border-top: 2px solid var(--accent-bright); border-left: 2px solid var(--accent-bright); }
-    .hud-corner.tr { top: 10px; right: 10px; border-top: 1px solid var(--border-strong); border-right: 1px solid var(--border-strong); }
-    .hud-corner.bl { bottom: 10px; left: 10px; border-bottom: 1px solid var(--border-strong); border-left: 1px solid var(--border-strong); }
-    .hud-corner.br { bottom: 10px; right: 10px; border-bottom: 2px solid var(--amber); border-right: 2px solid var(--amber); }
 
     .stage-hud-top {
       position: absolute;
-      top: 18px;
+      top: 20px;
       left: 22px;
       right: 22px;
       display: flex;
       justify-content: space-between;
       align-items: center;
-      font-family: var(--mono);
-      font-size: 11px;
-      letter-spacing: 0.08em;
+      font-size: 12px;
+      font-weight: 500;
       color: var(--muted);
       pointer-events: none;
       z-index: 4;
     }
-    #stage-chapter { color: var(--accent-bright); font-weight: 600; }
+    #stage-chapter {
+      background: rgba(255, 255, 255, 0.08);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 4px 12px;
+      border-radius: 980px;
+      color: var(--text);
+      font-weight: 600;
+    }
     .stage-hud-bottom {
       position: absolute;
-      bottom: 16px;
+      bottom: 18px;
       left: 22px;
       right: 22px;
       display: flex;
@@ -260,7 +257,7 @@
       pointer-events: none;
       z-index: 4;
     }
-    #stage-explode { color: var(--amber); }
+    #stage-explode { color: var(--gold); }
     #canvas-3d {
       position: relative;
       z-index: 2;
@@ -279,14 +276,13 @@
       height: 156px;
       object-fit: contain;
       z-index: 1;
-      transition: opacity 0.45s ease;
     }
     #stage-3d.is-ready .stage-fallback { display: none; }
 
     .chapter {
-      padding-bottom: 52px;
-      margin-bottom: 52px;
-      border-bottom: 1px solid var(--border);
+      padding-bottom: 64px;
+      margin-bottom: 64px;
+      border-bottom: 1px solid var(--hairline);
     }
     .chapter:last-child {
       border-bottom: none;
@@ -295,77 +291,81 @@
     }
     .eyebrow {
       display: inline-block;
-      font-family: var(--mono);
-      font-size: 11.5px;
+      font-size: 12px;
       font-weight: 600;
-      letter-spacing: 0.08em;
+      letter-spacing: 0.06em;
       text-transform: uppercase;
-      color: var(--accent-bright);
-      border-left: 2px solid var(--accent-bright);
-      padding-left: 10px;
-      margin-bottom: 14px;
+      color: #64b5ff;
+      margin-bottom: 12px;
     }
     h1 {
-      margin: 0 0 12px;
-      font-size: clamp(28px, 4vw, 42px);
-      line-height: 1.12;
-      letter-spacing: -0.02em;
-      color: #f8fafc;
+      font-family: var(--display);
+      margin: 0 0 16px;
+      font-size: clamp(34px, 4.4vw, 52px);
+      font-weight: 700;
+      line-height: 1.06;
+      letter-spacing: -0.035em;
+      color: #ffffff;
     }
-    .lead { margin: 0 0 20px; color: #c7d5e6; font-size: 16px; max-width: 680px; }
-    .pill-row { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 18px; }
-    .pill {
-      font-family: var(--mono);
-      font-size: 11.5px;
-      background: var(--surface);
-      border: 1px solid var(--border-strong);
-      color: #dbeafe;
-      padding: 4px 10px;
+    .lead { margin: 0 0 24px; color: #a1a1a6; font-size: 17px; line-height: 1.55; max-width: 620px; }
+    .spec-meta {
+      margin: 0 0 26px;
+      font-size: 13.5px;
+      color: var(--muted);
+      line-height: 1.7;
     }
-    .badge-row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
     .cta-row { display: flex; flex-wrap: wrap; gap: 10px; }
     .btn {
-      display: inline-block;
-      padding: 10px 18px;
-      font-weight: 600;
-      font-size: 13.5px;
-      border: 1px solid var(--border-strong);
+      display: inline-flex;
+      align-items: center;
+      padding: 10px 20px;
+      border-radius: 980px;
+      font-weight: 500;
+      font-size: 14px;
+      border: 1px solid rgba(255, 255, 255, 0.14);
       color: var(--text);
-      background: var(--surface-2);
+      background: rgba(255, 255, 255, 0.06);
+      transition: background 0.15s ease;
     }
     .btn.primary {
       background: var(--accent);
-      border-color: var(--accent-bright);
+      border-color: var(--accent);
       color: #ffffff;
+      font-weight: 600;
     }
-    .btn:hover { text-decoration: none; border-color: var(--text); }
+    .btn:hover { text-decoration: none; background: rgba(255, 255, 255, 0.12); }
+    .btn.primary:hover { background: #2693ff; border-color: #2693ff; }
 
     h2 {
-      font-size: 21px;
-      color: #f8fafc;
-      margin: 0 0 16px;
-      border-left: 3px solid var(--accent-bright);
-      padding-left: 12px;
+      font-family: var(--display);
+      font-size: 28px;
+      font-weight: 700;
+      letter-spacing: -0.025em;
+      color: #ffffff;
+      margin: 0 0 18px;
     }
     .grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-      gap: 14px;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 16px;
     }
     .card {
       background: var(--surface);
-      border: 1px solid var(--border);
-      padding: 18px;
+      border: 1px solid var(--hairline);
+      border-radius: 24px;
+      padding: 24px;
     }
-    .card h3 { margin: 0 0 6px; font-size: 15.5px; color: var(--accent-bright); }
-    .card p { margin: 0; font-size: 13.8px; color: var(--muted); }
+    .card h3 { font-family: var(--display); margin: 0 0 8px; font-size: 17px; font-weight: 600; letter-spacing: -0.015em; color: var(--text); }
+    .card p { margin: 0; font-size: 14px; color: var(--muted); line-height: 1.55; }
     pre {
-      background: #04070d;
-      border: 1px solid var(--border);
-      padding: 16px 18px;
+      background: #0b0d12;
+      border: 1px solid var(--hairline);
+      border-radius: 18px;
+      padding: 20px 22px;
       overflow-x: auto;
       font-size: 13px;
-      color: #e2e8f0;
+      line-height: 1.65;
+      color: #f5f5f7;
       margin: 0;
     }
     code { font-family: var(--mono); }
@@ -373,28 +373,30 @@
       width: 100%;
       border-collapse: collapse;
       background: var(--surface);
-      border: 1px solid var(--border);
-      font-size: 13.5px;
+      border: 1px solid var(--hairline);
+      border-radius: 20px;
+      overflow: hidden;
+      font-size: 14px;
       font-variant-numeric: tabular-nums;
     }
-    th, td { padding: 10px 14px; text-align: left; border-bottom: 1px solid var(--border); }
-    th { background: var(--surface-2); color: #bae6fd; font-family: var(--mono); font-size: 11.5px; text-transform: uppercase; }
+    th, td { padding: 13px 16px; text-align: left; border-bottom: 1px solid var(--hairline); }
+    th { background: var(--surface-2); color: var(--muted); font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
     tr:last-child td { border-bottom: none; }
     .eco-badge {
       display: inline-block;
-      font-family: var(--mono);
+      font-size: 12px;
       font-weight: 600;
-      font-size: 11.5px;
-      padding: 2px 8px;
-      background: rgba(16, 185, 129, 0.14);
+      padding: 3px 10px;
+      border-radius: 980px;
+      background: rgba(48, 209, 88, 0.14);
       color: #6ee7b7;
-      border: 1px solid rgba(16, 185, 129, 0.35);
     }
     .ml-banner {
-      margin-top: 22px;
+      margin-top: 26px;
       background: var(--surface);
-      border: 1px solid var(--amber);
-      padding: 20px 22px;
+      border: 1px solid rgba(255, 214, 10, 0.28);
+      border-radius: 24px;
+      padding: 24px 26px;
       display: flex;
       flex-wrap: wrap;
       justify-content: space-between;
@@ -404,48 +406,48 @@
     .release-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-      gap: 14px;
+      gap: 16px;
     }
     .release-card {
       background: var(--surface);
-      border: 1px solid var(--border);
-      padding: 18px 20px;
+      border: 1px solid var(--hairline);
+      border-radius: 24px;
+      padding: 22px 24px;
     }
     .release-head {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 10px;
+      margin-bottom: 12px;
     }
     .release-tag {
       font-family: var(--mono);
       font-weight: 600;
-      font-size: 13px;
-      color: var(--accent-bright);
-      background: rgba(14, 165, 233, 0.14);
-      border: 1px solid rgba(56, 189, 248, 0.35);
-      padding: 2px 10px;
+      font-size: 12.5px;
+      color: #64b5ff;
+      background: rgba(10, 132, 255, 0.16);
+      padding: 3px 11px;
+      border-radius: 980px;
     }
     .release-date { font-family: var(--mono); font-size: 12px; color: var(--muted); }
-    .release-card ul { margin: 0; padding-left: 18px; color: var(--muted); font-size: 13.5px; }
+    .release-card ul { margin: 0; padding-left: 18px; color: var(--muted); font-size: 14px; }
     .release-card li { margin-bottom: 6px; }
     footer {
       margin-top: 40px;
-      padding-top: 20px;
-      border-top: 1px solid var(--border);
+      padding-top: 24px;
+      border-top: 1px solid var(--hairline);
       color: var(--muted);
-      font-family: var(--mono);
-      font-size: 12px;
+      font-size: 12.5px;
       display: flex;
       flex-wrap: wrap;
       justify-content: space-between;
       gap: 10px;
     }
     @media (max-width: 960px) {
-      .instrument-grid { grid-template-columns: 1fr; gap: 28px; }
+      .instrument-grid { grid-template-columns: 1fr; gap: 32px; }
       .vitrine-col { position: relative; top: 0; order: 1; }
       .chapters-col { order: 2; }
-      #stage-3d { height: 340px; min-height: 300px; }
+      #stage-3d { height: 360px; min-height: 300px; }
     }
   </style>
 </head>
@@ -454,7 +456,7 @@
 
   <nav class="topbar" aria-label="SIDIK Navigation">
     <div class="topbar-inner">
-      <a class="brand-mark" href="https://radityobw.github.io/SIDIK/"><span class="brand-sq"></span>SIDIK / ANALYZER</a>
+      <a class="brand-mark" href="https://radityobw.github.io/SIDIK/"><span class="brand-dot"></span>SIDIK</a>
       <div class="topbar-nav">
         <a href="#sec-sast">Polyglot SAST</a>
         <a href="#sec-sca">OSV SCA</a>
@@ -468,27 +470,18 @@
     <div class="instrument-grid">
       <main class="chapters-col">
         <section class="chapter" data-chapter="overview" id="sec-overview">
-          <span class="eyebrow">v1.4.0 | Ocean Blue Edition | MIT License</span>
+          <span class="eyebrow">v1.4.0 | Apple Pro Midnight | MIT License</span>
           <h1>SIDIK: Offline Polyglot SAST &amp; 8-Ecosystem OSV SCA</h1>
           <p class="lead">
             Secret Identification and Dependency Inspection Kit (<strong>SIDIK</strong>) is a lightweight, 100% offline security scanner combining 3-layer secret detection across <strong>30+ programming &amp; config languages</strong> with local Google OSV dependency auditing across <strong>8 ecosystems and 19 manifest/lockfile formats</strong>.
           </p>
-          <div class="pill-row">
-            <span class="pill">30+ Languages &amp; Configs</span>
-            <span class="pill">8 Ecosystems / 19 Manifests</span>
-            <span class="pill"><!-- AUTO_OSV_COUNT_START -->35,304<!-- AUTO_OSV_COUNT_END --> Bundled PyPI Advisories</span>
-            <span class="pill">SQLite OSV Cache</span>
-            <span class="pill">SARIF v2.1.0 &amp; GitHub Actions</span>
-          </div>
-          <div class="badge-row">
-            <a href="https://pypi.org/project/sidik/"><img src="https://img.shields.io/pypi/v/sidik?label=PyPI&color=0ea5e9&cacheSeconds=3600" alt="PyPI Version" /></a>
-            <a href="https://github.com/radityobw/SIDIK/releases/latest"><img src="https://img.shields.io/github/v/release/radityobw/SIDIK?label=Release&color=0284c7&cacheSeconds=3600" alt="GitHub Release" /></a>
-            <a href="https://github.com/radityobw/SIDIK/actions/workflows/sidik-security.yml"><img src="https://img.shields.io/github/actions/workflow/status/radityobw/SIDIK/sidik-security.yml?label=CI&color=22c55e" alt="CI Status" /></a>
-          </div>
+          <p class="spec-meta">
+            30+ Languages  ·  8 Ecosystems / 19 Manifests  ·  <!-- AUTO_OSV_COUNT_START -->35,304<!-- AUTO_OSV_COUNT_END --> Bundled Advisories  ·  SQLite OSV Cache  ·  SARIF v2.1.0
+          </p>
           <div class="cta-row">
             <a class="btn primary" href="https://github.com/radityobw/SIDIK">GitHub Repository</a>
             <a class="btn" href="https://pypi.org/project/sidik/">PyPI Package</a>
-            <a class="btn" href="https://radityobw.github.io/SIDIK-ML/">SIDIK-ML (Non-ANN ML)</a>
+            <a class="btn" href="https://radityobw.github.io/SIDIK-ML/">SIDIK-ML</a>
             <a class="btn" href="https://jurnal.mediaakademik.com/index.php/jma/article/view/9068/6647">JMA Paper</a>
           </div>
         </section>
@@ -516,7 +509,7 @@
         </section>
 
         <section class="chapter" data-chapter="sca" id="sec-sca">
-          <h2>8-Ecosystem Offline SCA Matrix (19 Manifest &amp; Lockfile Formats)</h2>
+          <h2>8-Ecosystem Offline SCA Matrix</h2>
           <table>
             <thead>
               <tr>
@@ -569,7 +562,7 @@
             </tbody>
           </table>
 
-          <h2 style="margin-top:34px;">Quick Start</h2>
+          <h2 style="margin-top:40px;">Quick Start</h2>
           <pre><code># Install from PyPI (Core CLI or Desktop GUI edition)
 pip install sidik
 pip install "sidik[gui]"
@@ -585,7 +578,7 @@ sidik --db-info</code></pre>
         </section>
 
         <section class="chapter" data-chapter="benchmarks" id="sec-benchmarks">
-          <h2>Verified Empirical Benchmarks (Foundational Release)</h2>
+          <h2>Verified Empirical Benchmarks</h2>
           <table>
             <thead>
               <tr>
@@ -620,17 +613,17 @@ sidik --db-info</code></pre>
 
           <div class="ml-banner">
             <div>
-              <strong style="color:#fbbf24; font-size:16.5px;">Need Explainable Non-ANN ML False-Positive Triage?</strong>
-              <p style="margin:6px 0 0; color:#cbd5e1; font-size:14px;">
+              <strong style="color:#ffd60a; font-size:17px;">Need Explainable Non-ANN ML False-Positive Triage?</strong>
+              <p style="margin:6px 0 0; color:#a1a1a6; font-size:14px;">
                 Pair SIDIK with <strong>SIDIK-ML</strong> (<code>pip install sidik-ml</code>) for 5 bundled SHA-256-verified classical ML models, 30 leakage-free features, and fail-safe <code>CRITICAL</code> protection.
               </p>
             </div>
-            <a class="btn" style="border-color:#f59e0b; color:#fde68a;" href="https://radityobw.github.io/SIDIK-ML/">Explore SIDIK-ML</a>
+            <a class="btn" style="border-color:rgba(255,214,10,0.4); color:#ffd60a;" href="https://radityobw.github.io/SIDIK-ML/">Explore SIDIK-ML</a>
           </div>
         </section>
 
         <section class="chapter" data-chapter="releases" id="sec-releases">
-          <h2>Latest Releases (Auto-Synced from CHANGELOG.md)</h2>
+          <h2>Latest Releases</h2>
           <div class="release-grid">
             <!-- AUTO_CHANGELOG_START -->
             <article class="release-card">
@@ -649,26 +642,22 @@ sidik --db-info</code></pre>
 
       <aside class="vitrine-col" aria-label="Interactive 3D SIDIK Shield">
         <div id="stage-3d">
-          <span class="hud-corner tl"></span>
-          <span class="hud-corner tr"></span>
-          <span class="hud-corner bl"></span>
-          <span class="hud-corner br"></span>
           <div class="stage-hud-top">
-            <span id="stage-chapter">01 / OVERVIEW</span>
-            <span>DRAG TO ORBIT</span>
+            <span id="stage-chapter">01 Overview</span>
+            <span>Drag to orbit</span>
           </div>
           <img class="stage-fallback" src="logo.png" alt="SIDIK Security Scanner Logo" width="156" height="156" />
           <canvas id="canvas-3d" aria-label="3D Exploded Shield Model for SIDIK"></canvas>
           <div class="stage-hud-bottom">
-            <span>sidik.glb · 7 MESH LAYERS</span>
-            <span id="stage-explode">ASSEMBLED SHIELD</span>
+            <span>sidik.glb · 7 layers</span>
+            <span id="stage-explode">Assembled shield</span>
           </div>
         </div>
       </aside>
     </div>
 
     <footer>
-      <span>SIDIK Security Analyzer - MIT License - <!-- AUTO_UPDATED_START -->Updated 2026-11-25<!-- AUTO_UPDATED_END --></span>
+      <span>SIDIK Security Analyzer · MIT License · <!-- AUTO_UPDATED_START -->Updated 2026-11-25<!-- AUTO_UPDATED_END --></span>
       <span><a href="https://github.com/radityobw/SIDIK">GitHub</a> | <a href="https://pypi.org/project/sidik/">PyPI</a> | <a href="https://github.com/radityobw/SIDIK/releases">Releases</a> | <a href="https://radityobw.github.io/SIDIK-ML/">SIDIK-ML</a></span>
     </footer>
   </div>
