@@ -101,6 +101,28 @@ function initShowcase() {
   amberRim.position.set(2.8, -1.5, -2.6);
   scene.add(amberRim);
 
+  function applyTheme() {
+    const isLight = document.documentElement.dataset.theme === 'light';
+    if (isLight) {
+      renderer.toneMappingExposure = 1.02;
+      scene.environmentIntensity = 0.54;
+      keyLight.intensity = 1.45;
+      oceanRim.intensity = 6.5;
+      amberRim.intensity = 0.65;
+    } else {
+      renderer.toneMappingExposure = 1.12;
+      scene.environmentIntensity = 0.92;
+      keyLight.intensity = 2.2;
+      oceanRim.intensity = 11.0;
+      amberRim.intensity = 1.1;
+    }
+  }
+  applyTheme();
+  new MutationObserver(applyTheme).observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ['data-theme'],
+  });
+
   const pivot = new THREE.Group();
   scene.add(pivot);
 
