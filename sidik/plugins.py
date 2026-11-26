@@ -5,12 +5,14 @@ Allows external extensions such as SIDIK-ML to register via standard Python
 introducing any ML dependency or import inside SIDIK itself.
 """
 
-from importlib import metadata
+from importlib import metadata, resources
+import os
 from typing import Any, Dict, List, Optional, Protocol, Sequence, runtime_checkable
 
 from sidik.models import ScanReport
 
 PLUGIN_ENTRY_POINT_GROUP = "sidik.plugins"
+BRAND_ASSETS_ENTRY_POINT_GROUP = "sidik.brand_assets"
 
 
 @runtime_checkable
@@ -84,3 +86,59 @@ def apply_post_scan_plugins(
         if callable(triage_fn):
             current = triage_fn(scanner, target_path, current, options=options)  # type: ignore[assignment]
     return current
+
+
+def resolve_brand_asset_path(
+    filename: str,
+    fallback_dirs: Optional[Sequence[str]] = None,
+) -> Optional[str]:
+    """Resolves an extension branding asset via env var, entry points, or fallback dirs."""
+    env_dir = os.environ.get("SIDIK_BRAND_ASSETS_DIR")
+    if env_dir:
+        candidate = os.path.join(env_dir, filename)
+        if os.path.isfile(candidate):
+            return candidate
+    for ep in _iter_entry_points(BRAND_ASSETS_ENTRY_POINT_GROUP):
+        try:
+            res = resources.files(ep.value).joinpath(filename)
+            if res.is_file():
+                return str(res)
+        except Exception:
+            continue
+    for directory in fallback_dirs or ():
+        candidate = os.path.join(directory, filename)
+        if os.path.isfile(candidate):
+            return candidate
+    return None
+
+
+def read_brand_asset_bytes(
+    filename: str,
+    fallback_dirs: Optional[Sequence[str]] = None,
+) -> Optional[bytes]:
+    """Reads bytes for an extension branding asset if available from any decoupled source."""
+    env_dir = os.environ.get("SIDIK_BRAND_ASSETS_DIR")
+    if env_dir:
+        candidate = os.path.join(env_dir, filename)
+        if os.path.isfile(candidate):
+            try:
+                with open(candidate, "rb") as fh:
+                    return fh.read()
+            except Exception:
+                pass
+    for ep in _iter_entry_points(BRAND_ASSETS_ENTRY_POINT_GROUP):
+        try:
+            res = resources.files(ep.value).joinpath(filename)
+            if res.is_file():
+                return res.read_bytes()
+        except Exception:
+            continue
+    for directory in fallback_dirs or ():
+        candidate = os.path.join(directory, filename)
+        if os.path.isfile(candidate):
+            try:
+                with open(candidate, "rb") as fh:
+                    return fh.read()
+            except Exception:
+                pass
+    return None

@@ -6,6 +6,7 @@
   <title>SIDIK - Offline Polyglot SAST &amp; 8-Ecosystem OSV SCA Security Scanner</title>
   <meta name="description" content="SIDIK is a 100% offline polyglot SAST and 8-ecosystem OSV SCA security scanner covering 30+ languages and 19 manifests (PyPI, npm, Go, Rust, Java, PHP, Ruby, .NET) with CLI, TUI, GUI, and SARIF." />
   <meta name="keywords" content="SIDIK, polyglot SAST, offline SCA, OSV vulnerability scanner, secret detection, PyPI, npm, Go, Rust, Maven, Packagist, RubyGems, NuGet, SARIF, DevSecOps" />
+  <meta name="author" content="Radityo Budi Waskito" />
   <meta name="robots" content="index, follow" />
   <link rel="canonical" href="https://radityobw.github.io/SIDIK/" />
   <link rel="icon" href="favicon.ico" sizes="48x48" />
@@ -28,6 +29,20 @@
   <meta name="twitter:title" content="SIDIK - Offline Polyglot SAST &amp; 8-Ecosystem OSV SCA" />
   <meta name="twitter:description" content="Scan hardcoded secrets across 30+ languages and audit 8 dependency ecosystems offline with zero code upload." />
   <meta name="twitter:image" content="https://radityobw.github.io/SIDIK/og-banner.png" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <script>(function(){try{var t=localStorage.getItem('radityobw_theme');document.documentElement.dataset.theme=(t==='light')?'light':'dark';}catch(e){document.documentElement.dataset.theme='dark';}})();</script>
+
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+    }
+  }
+  </script>
 
   <script type="application/ld+json">
   {
@@ -100,307 +115,557 @@
 
   <style>
     :root {
-      --bg: #0b1120;
-      --bg-card: #111827;
-      --bg-soft: #172033;
-      --border: #1e293b;
-      --text: #e2e8f0;
-      --muted: #94a3b8;
-      --accent: #0ea5e9;
-      --accent-strong: #3b82f6;
-      --green: #10b981;
-      --amber: #f59e0b;
+      --bg: #000000;
+      --topbar-bg: rgba(0, 0, 0, 0.72);
+      --surface: #111318;
+      --surface-2: #171a21;
+      --hairline: rgba(255, 255, 255, 0.10);
+      --card-border: rgba(255, 255, 255, 0.08);
+      --text: #f5f5f7;
+      --heading: #ffffff;
+      --lead: #b0b7c2;
+      --muted: #86868b;
+      --accent: #0a84ff;
+      --accent-soft: #64b5ff;
+      --accent-pill: rgba(10, 132, 255, 0.16);
+      --gold: #ffd60a;
+      --eco-bg: rgba(48, 209, 88, 0.14);
+      --eco-fg: #6ee7b7;
+      --banner-border: rgba(255, 214, 10, 0.28);
+      --banner-cta-fg: #ffd60a;
+      --btn-bg: rgba(255, 255, 255, 0.07);
+      --btn-hover: rgba(255, 255, 255, 0.13);
+      --code-bg: #0b0d12;
+      --code-text: #f5f5f7;
+      --stage-bg: radial-gradient(ellipse 74% 72% at 50% 48%, #344f78 0%, #1a2942 42%, #0a111e 76%, #030508 100%);
+      --stage-pill: rgba(255, 255, 255, 0.09);
+      --mono: "SF Mono", ui-monospace, "JetBrains Mono", Menlo, monospace;
+      --display: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter", "Helvetica Neue", sans-serif;
+      --sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", "Helvetica Neue", sans-serif;
+    }
+    html[data-theme="light"] {
+      --bg: #fbfbfd;
+      --topbar-bg: rgba(251, 251, 253, 0.80);
+      --surface: #ffffff;
+      --surface-2: #f5f5f7;
+      --hairline: rgba(0, 0, 0, 0.08);
+      --card-border: rgba(0, 0, 0, 0.06);
+      --text: #1d1d1f;
+      --heading: #1d1d1f;
+      --lead: #424245;
+      --muted: #6e6e73;
+      --accent: #0071e3;
+      --accent-soft: #0071e3;
+      --accent-pill: rgba(0, 113, 227, 0.10);
+      --gold: #b45309;
+      --eco-bg: rgba(31, 138, 91, 0.10);
+      --eco-fg: #1d8348;
+      --banner-border: rgba(180, 83, 9, 0.25);
+      --banner-cta-fg: #b45309;
+      --btn-bg: rgba(0, 0, 0, 0.05);
+      --btn-hover: rgba(0, 0, 0, 0.09);
+      --code-bg: #1d1d1f;
+      --code-text: #f5f5f7;
+      --stage-bg: radial-gradient(circle at 50% 45%, #ffffff 0%, #edf3fa 76%, #e1eaf6 100%);
+      --stage-pill: rgba(255, 255, 255, 0.86);
     }
     * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
     body {
       margin: 0;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, Arial, sans-serif;
-      background: radial-gradient(circle at top right, #102a43 0%, var(--bg) 48%);
+      font-family: var(--sans);
+      background: var(--bg);
       color: var(--text);
-      line-height: 1.6;
+      line-height: 1.58;
+      overflow-x: clip;
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
+      transition: background-color 0.22s ease, color 0.22s ease;
     }
-    a { color: var(--accent); text-decoration: none; }
+    a { color: var(--accent-soft); text-decoration: none; }
     a:hover { text-decoration: underline; }
-    .wrap { max-width: 1080px; margin: 0 auto; padding: 36px 20px 64px; }
-    .hero {
-      background: linear-gradient(145deg, #0f172a 0%, #111c33 100%);
-      border: 1px solid #1e3a5f;
-      border-radius: 18px;
-      padding: 36px 32px;
-      display: grid;
-      grid-template-columns: 1fr auto;
-      gap: 24px;
-      align-items: center;
-      box-shadow: 0 20px 45px rgba(2, 6, 23, 0.55);
+
+    .progress-track {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: transparent;
+      z-index: 60;
+      pointer-events: none;
     }
-    @media (max-width: 780px) {
-      .hero { grid-template-columns: 1fr; text-align: center; }
-      .cta-row, .pill-row { justify-content: center; }
+    #scroll-progress-bar {
+      width: 100%;
+      height: 100%;
+      background: var(--accent);
+      transform-origin: left center;
+      transform: scaleX(0);
+    }
+
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 40;
+      min-height: 52px;
+      background: var(--topbar-bg);
+      backdrop-filter: saturate(180%) blur(20px);
+      -webkit-backdrop-filter: saturate(180%) blur(20px);
+      border-bottom: 1px solid var(--hairline);
+    }
+    .topbar-inner {
+      max-width: 1220px;
+      min-height: 52px;
+      margin: 0 auto;
+      padding: 10px 28px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+    .brand-mark {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--text);
+      font-weight: 600;
+      font-size: 14px;
+      letter-spacing: -0.01em;
+      white-space: nowrap;
+    }
+    .brand-mark:hover { text-decoration: none; }
+    .brand-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); display: inline-block; flex-shrink: 0; }
+    .topbar-nav { display: flex; align-items: center; gap: 20px; }
+    .topbar-nav a { color: var(--muted); font-weight: 500; white-space: nowrap; transition: color 0.15s ease; }
+    .topbar-nav a:hover { color: var(--text); text-decoration: none; }
+    .theme-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 32px;
+      border-radius: 980px;
+      border: 1px solid var(--hairline);
+      background: var(--btn-bg);
+      color: var(--text);
+      cursor: pointer;
+      padding: 0;
+      flex-shrink: 0;
+      transition: background 0.15s ease;
+    }
+    .theme-btn:hover { background: var(--btn-hover); }
+    .theme-btn svg { width: 15px; height: 15px; display: block; }
+    html[data-theme="dark"] .icon-moon { display: none; }
+    html[data-theme="light"] .icon-sun { display: none; }
+
+    .wrap { max-width: 1220px; margin: 0 auto; padding: 56px 28px 84px; }
+    .instrument-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.18fr) minmax(350px, 0.82fr);
+      gap: 48px;
+      align-items: start;
+    }
+    .vitrine-col { position: sticky; top: 84px; order: 2; min-width: 0; }
+    .chapters-col { order: 1; min-width: 0; max-width: 100%; }
+
+    #stage-3d {
+      position: relative;
+      height: min(560px, calc(100vh - 120px));
+      min-height: 400px;
+      background: var(--stage-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 28px;
+      overflow: hidden;
+      cursor: grab;
+      user-select: none;
+      touch-action: pan-y;
+    }
+    #stage-3d:active { cursor: grabbing; }
+
+    .stage-hud-top {
+      position: absolute;
+      top: 20px;
+      left: 22px;
+      right: 22px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--muted);
+      pointer-events: none;
+      z-index: 4;
+    }
+    #stage-chapter {
+      background: var(--stage-pill);
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--hairline);
+      padding: 4px 12px;
+      border-radius: 980px;
+      color: var(--text);
+      font-weight: 600;
+    }
+    .stage-hud-bottom {
+      position: absolute;
+      bottom: 18px;
+      left: 22px;
+      right: 22px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--muted);
+      pointer-events: none;
+      z-index: 4;
+    }
+    #stage-explode { color: var(--gold); font-weight: 600; }
+    #canvas-3d {
+      position: relative;
+      z-index: 2;
+      width: 100%;
+      height: 100%;
+      display: block;
+      opacity: 0;
+      transition: opacity 0.45s ease;
+    }
+    #stage-3d.is-ready #canvas-3d { opacity: 1; }
+    .stage-fallback {
+      position: absolute;
+      inset: 0;
+      margin: auto;
+      width: 156px;
+      height: 156px;
+      object-fit: contain;
+      z-index: 1;
+    }
+    #stage-3d.is-ready .stage-fallback { display: none; }
+
+    .chapter {
+      padding-bottom: 60px;
+      margin-bottom: 60px;
+      border-bottom: 1px solid var(--hairline);
+      min-width: 0;
+      max-width: 100%;
+    }
+    .chapter:last-child {
+      border-bottom: none;
+      margin-bottom: 16px;
+      padding-bottom: 16px;
     }
     .eyebrow {
       display: inline-block;
       font-size: 12px;
-      font-weight: 700;
-      letter-spacing: 0.08em;
+      font-weight: 600;
+      letter-spacing: 0.06em;
       text-transform: uppercase;
-      color: #38bdf8;
-      background: rgba(14, 165, 233, 0.12);
-      border: 1px solid rgba(56, 189, 248, 0.35);
-      border-radius: 999px;
-      padding: 4px 12px;
+      color: var(--accent-soft);
       margin-bottom: 12px;
     }
-    h1 { margin: 0 0 10px; font-size: clamp(28px, 4vw, 42px); line-height: 1.15; color: #f8fafc; }
-    .lead { margin: 0 0 18px; color: #cbd5e1; font-size: 17px; max-width: 720px; }
-    .pill-row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
-    .pill {
-      font-size: 13px;
-      font-weight: 600;
-      background: var(--bg-soft);
-      border: 1px solid #293548;
-      color: #e0f2fe;
-      padding: 5px 12px;
-      border-radius: 999px;
+    h1 {
+      font-family: var(--display);
+      margin: 0 0 16px;
+      font-size: clamp(32px, 4.2vw, 50px);
+      font-weight: 700;
+      line-height: 1.06;
+      letter-spacing: -0.035em;
+      color: var(--heading);
+      overflow-wrap: break-word;
+    }
+    .lead { margin: 0 0 24px; color: var(--lead); font-size: 17px; line-height: 1.55; max-width: 640px; }
+    .spec-meta {
+      margin: 0 0 26px;
+      font-size: 13.5px;
+      color: var(--muted);
+      line-height: 1.7;
     }
     .cta-row { display: flex; flex-wrap: wrap; gap: 10px; }
     .btn {
-      display: inline-block;
-      padding: 10px 18px;
-      border-radius: 10px;
-      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      padding: 10px 20px;
+      border-radius: 980px;
+      font-weight: 500;
       font-size: 14px;
-      border: 1px solid #334155;
-      color: #f8fafc;
-      background: #1e293b;
+      border: 1px solid var(--hairline);
+      color: var(--text);
+      background: var(--btn-bg);
+      transition: background 0.15s ease;
     }
     .btn.primary {
-      background: linear-gradient(135deg, var(--accent) 0%, var(--accent-strong) 100%);
-      border-color: #38bdf8;
+      background: var(--accent);
+      border-color: var(--accent);
       color: #ffffff;
+      font-weight: 600;
     }
-    .btn:hover { text-decoration: none; filter: brightness(1.08); }
-    .logo-box img { width: 156px; max-width: 100%; height: auto; }
-    section { margin-top: 38px; }
+    .btn:hover { text-decoration: none; background: var(--btn-hover); }
+    .btn.primary:hover { background: #2693ff; border-color: #2693ff; }
+
     h2 {
-      font-size: 22px;
-      color: #f8fafc;
-      margin: 0 0 14px;
-      border-left: 4px solid var(--accent);
-      padding-left: 12px;
+      font-family: var(--display);
+      font-size: 28px;
+      font-weight: 700;
+      letter-spacing: -0.025em;
+      color: var(--heading);
+      margin: 0 0 18px;
+      overflow-wrap: break-word;
     }
     .grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
-      gap: 14px;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 16px;
+      min-width: 0;
     }
     .card {
-      background: var(--bg-card);
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      padding: 18px;
+      background: var(--surface);
+      border: 1px solid var(--card-border);
+      border-radius: 24px;
+      padding: 24px;
+      min-width: 0;
+      max-width: 100%;
+      overflow-wrap: break-word;
     }
-    .card h3 { margin: 0 0 6px; font-size: 16px; color: #38bdf8; }
-    .card p { margin: 0; font-size: 14px; color: var(--muted); }
+    .card h3 { font-family: var(--display); margin: 0 0 8px; font-size: 17px; font-weight: 600; letter-spacing: -0.015em; color: var(--text); }
+    .card p { margin: 0; font-size: 14px; color: var(--muted); line-height: 1.55; overflow-wrap: break-word; }
+    :not(pre) > code { overflow-wrap: anywhere; word-break: break-word; font-size: 0.9em; }
     pre {
-      background: #060b16;
-      border: 1px solid #1e293b;
-      border-radius: 12px;
-      padding: 16px 18px;
+      background: var(--code-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 18px;
+      padding: 20px 22px;
+      max-width: 100%;
       overflow-x: auto;
-      font-size: 13.5px;
-      color: #e2e8f0;
+      -webkit-overflow-scrolling: touch;
+      font-size: 13px;
+      line-height: 1.65;
+      color: var(--code-text);
       margin: 0;
     }
-    code { font-family: "Cascadia Code", Consolas, "Courier New", monospace; }
-    table {
+    code { font-family: var(--mono); }
+    pre code { white-space: pre; word-break: normal; overflow-wrap: normal; }
+    .table-wrap {
+      width: 100%;
+      max-width: 100%;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      border-radius: 20px;
+      border: 1px solid var(--hairline);
+      background: var(--surface);
+    }
+    .table-wrap table {
       width: 100%;
       border-collapse: collapse;
-      background: var(--bg-card);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      overflow: hidden;
-      font-size: 14px;
+      font-size: 13.5px;
+      font-variant-numeric: tabular-nums;
     }
-    th, td { padding: 11px 14px; text-align: left; border-bottom: 1px solid var(--border); }
-    th { background: #162032; color: #bae6fd; font-weight: 700; }
+    th, td { padding: 12px 15px; text-align: left; border-bottom: 1px solid var(--hairline); }
+    th { background: var(--surface-2); color: var(--muted); font-size: 11.5px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; white-space: nowrap; }
     tr:last-child td { border-bottom: none; }
     .eco-badge {
       display: inline-block;
-      font-weight: 700;
       font-size: 12px;
-      padding: 2px 8px;
-      border-radius: 6px;
-      background: rgba(16, 185, 129, 0.14);
-      color: #6ee7b7;
-      border: 1px solid rgba(16, 185, 129, 0.35);
+      font-weight: 600;
+      padding: 3px 10px;
+      border-radius: 980px;
+      background: var(--eco-bg);
+      color: var(--eco-fg);
+      white-space: nowrap;
     }
     .ml-banner {
-      background: linear-gradient(135deg, rgba(245, 158, 11, 0.14) 0%, rgba(234, 88, 12, 0.08) 100%);
-      border: 1px solid rgba(245, 158, 11, 0.45);
-      border-radius: 14px;
-      padding: 20px 24px;
+      margin-top: 26px;
+      background: var(--surface);
+      border: 1px solid var(--banner-border);
+      border-radius: 24px;
+      padding: 24px 26px;
       display: flex;
       flex-wrap: wrap;
       justify-content: space-between;
       align-items: center;
       gap: 16px;
+      min-width: 0;
+      max-width: 100%;
     }
-    .badge-row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
     .release-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-      gap: 14px;
+      grid-template-columns: 1fr;
+      gap: 16px;
+      min-width: 0;
     }
     .release-card {
-      background: var(--bg-card);
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      padding: 18px 20px;
+      background: var(--surface);
+      border: 1px solid var(--card-border);
+      border-radius: 24px;
+      padding: 22px 24px;
+      min-width: 0;
+      max-width: 100%;
+      overflow-wrap: break-word;
     }
     .release-head {
       display: flex;
+      flex-wrap: wrap;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 10px;
+      gap: 8px;
+      margin-bottom: 12px;
     }
     .release-tag {
-      font-weight: 700;
-      font-size: 14px;
-      color: #38bdf8;
-      background: rgba(14, 165, 233, 0.14);
-      border: 1px solid rgba(56, 189, 248, 0.35);
-      padding: 2px 10px;
-      border-radius: 999px;
+      font-family: var(--mono);
+      font-weight: 600;
+      font-size: 12.5px;
+      color: var(--accent-soft);
+      background: var(--accent-pill);
+      padding: 3px 11px;
+      border-radius: 980px;
     }
-    .release-date { font-size: 12.5px; color: var(--muted); }
-    .release-card ul { margin: 0; padding-left: 18px; color: var(--muted); font-size: 13.5px; }
-    .release-card li { margin-bottom: 6px; }
+    .release-date { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+    .release-card ul { margin: 0; padding-left: 18px; color: var(--muted); font-size: 14px; }
+    .release-card li { margin-bottom: 6px; overflow-wrap: anywhere; }
     footer {
-      margin-top: 48px;
-      padding-top: 20px;
-      border-top: 1px solid var(--border);
+      margin-top: 40px;
+      padding-top: 24px;
+      border-top: 1px solid var(--hairline);
       color: var(--muted);
-      font-size: 13px;
+      font-size: 12.5px;
       display: flex;
       flex-wrap: wrap;
       justify-content: space-between;
       gap: 10px;
     }
+    @media (max-width: 960px) {
+      .instrument-grid { grid-template-columns: 1fr; gap: 32px; }
+      .vitrine-col { position: relative; top: 0; order: 1; }
+      .chapters-col { order: 2; }
+      #stage-3d { height: 360px; min-height: 300px; }
+    }
+    @media (max-width: 640px) {
+      .wrap { padding: 32px 18px 64px; }
+      .topbar-inner { padding: 10px 16px; gap: 10px; }
+      .topbar-nav { gap: 12px; font-size: 12px; }
+      .topbar-nav a:nth-child(n+4) { display: none; }
+    }
   </style>
 </head>
 <body>
+  <div class="progress-track"><div id="scroll-progress-bar"></div></div>
+
+  <nav class="topbar" aria-label="SIDIK Navigation">
+    <div class="topbar-inner">
+      <a class="brand-mark" href="https://radityobw.github.io/SIDIK/"><span class="brand-dot"></span>SIDIK</a>
+      <div class="topbar-nav">
+        <a href="#sec-sast">Polyglot SAST</a>
+        <a href="#sec-sca">OSV SCA</a>
+        <a href="#sec-benchmarks">Benchmarks</a>
+        <a href="https://radityobw.github.io/SIDIK-ML/">SIDIK-ML</a>
+        <button id="theme-toggle" class="theme-btn" type="button" aria-label="Toggle light or dark theme" title="Toggle theme">
+          <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"></path></svg>
+          <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+        </button>
+      </div>
+    </div>
+  </nav>
+
   <div class="wrap">
-    <header class="hero">
-      <div>
-        <span class="eyebrow">v1.4.0 | Ocean Blue Edition | MIT License</span>
-        <h1>SIDIK: Offline Polyglot SAST &amp; 8-Ecosystem OSV SCA</h1>
-        <p class="lead">
-          Secret Identification and Dependency Inspection Kit (<strong>SIDIK</strong>) is a lightweight, 100% offline security scanner combining 3-layer secret detection across <strong>30+ programming &amp; config languages</strong> with local Google OSV dependency auditing across <strong>8 ecosystems and 19 manifest/lockfile formats</strong>.
-        </p>
-        <div class="pill-row">
-          <span class="pill">30+ Languages &amp; Configs</span>
-          <span class="pill">8 Ecosystems / 19 Manifests</span>
-          <span class="pill"><!-- AUTO_OSV_COUNT_START -->35,304<!-- AUTO_OSV_COUNT_END --> Bundled PyPI Advisories</span>
-          <span class="pill">SQLite OSV Cache</span>
-          <span class="pill">SARIF v2.1.0 &amp; GitHub Actions</span>
-        </div>
-        <div class="badge-row">
-          <a href="https://pypi.org/project/sidik/"><img src="https://img.shields.io/pypi/v/sidik?label=PyPI&color=0ea5e9&cacheSeconds=3600" alt="PyPI Version" /></a>
-          <a href="https://github.com/radityobw/SIDIK/releases/latest"><img src="https://img.shields.io/github/v/release/radityobw/SIDIK?label=Release&color=0284c7&cacheSeconds=3600" alt="GitHub Release" /></a>
-          <a href="https://github.com/radityobw/SIDIK/actions/workflows/sidik-security.yml"><img src="https://img.shields.io/github/actions/workflow/status/radityobw/SIDIK/sidik-security.yml?label=CI&color=22c55e" alt="CI Status" /></a>
-        </div>
-        <div class="cta-row">
-          <a class="btn primary" href="https://github.com/radityobw/SIDIK">GitHub Repository</a>
-          <a class="btn" href="https://pypi.org/project/sidik/">PyPI Package</a>
-          <a class="btn" href="https://radityobw.github.io/SIDIK-ML/">SIDIK-ML (Non-ANN ML)</a>
-          <a class="btn" href="https://jurnal.mediaakademik.com/index.php/jma/article/view/9068/6647">JMA Paper</a>
-        </div>
-      </div>
-      <div class="logo-box">
-        <img src="logo.png" alt="SIDIK Security Scanner Logo" width="156" height="156" />
-      </div>
-    </header>
+    <div class="instrument-grid">
+      <main class="chapters-col">
+        <section class="chapter" data-chapter="overview" id="sec-overview">
+          <span class="eyebrow">v1.4.0 | Apple Pro Midnight | MIT License</span>
+          <h1>SIDIK: Offline Polyglot SAST &amp; 8-Ecosystem OSV SCA</h1>
+          <p class="lead">
+            Secret Identification and Dependency Inspection Kit (<strong>SIDIK</strong>) is a lightweight, 100% offline security scanner combining 3-layer secret detection across <strong>30+ programming &amp; config languages</strong> with local Google OSV dependency auditing across <strong>8 ecosystems and 19 manifest/lockfile formats</strong>.
+          </p>
+          <p class="spec-meta">
+            30+ Languages  ·  8 Ecosystems / 19 Manifests  ·  <!-- AUTO_OSV_COUNT_START -->35,304<!-- AUTO_OSV_COUNT_END --> Bundled Advisories  ·  SQLite OSV Cache  ·  SARIF v2.1.0
+          </p>
+          <div class="cta-row">
+            <a class="btn primary" href="https://github.com/radityobw/SIDIK">GitHub Repository</a>
+            <a class="btn" href="https://pypi.org/project/sidik/">PyPI Package</a>
+            <a class="btn" href="https://radityobw.github.io/SIDIK-ML/">SIDIK-ML</a>
+            <a class="btn" href="https://jurnal.mediaakademik.com/index.php/jma/article/view/9068/6647">JMA Paper</a>
+          </div>
+        </section>
 
-    <section>
-      <h2>Polyglot Secret Detection (30+ File Types &amp; Configs)</h2>
-      <div class="grid">
-        <div class="card">
-          <h3>12 Curated Secret Rules (SEC001 - SEC012)</h3>
-          <p>Detects AWS, Google, OpenAI, Stripe, GitHub PAT, Slack, JWT, private keys, database URIs, hardcoded passwords, and generic high-entropy secrets.</p>
-        </div>
-        <div class="card">
-          <h3>Polyglot Lexical &amp; Comment Filtering</h3>
-          <p>Understands Python, JS/TS, Go, Rust, Java, Kotlin, C#, PHP, Ruby, Swift, Shell, YAML, TOML, JSON, .env, .npmrc, and Dockerfile with cross-language env lookups.</p>
-        </div>
-        <div class="card">
-          <h3>Zero Lockfile &amp; Minified Bundle Noise</h3>
-          <p>Automatically skips noisy lockfiles and minified bundles while respecting .sidikignore patterns and # nosec / // nosec / # sidik:ignore inline suppressions.</p>
-        </div>
-        <div class="card">
-          <h3>Triple Interface &amp; 7 Report Formats</h3>
-          <p>Run via One-Shot CLI, Interactive TUI Menu, or High-DPI Bilingual GUI; export Console, SARIF v2.1.0, GitHub Annotations, HTML, Markdown, JSON, and CSV.</p>
-        </div>
-      </div>
-    </section>
+        <section class="chapter" data-chapter="sast" id="sec-sast">
+          <h2>Polyglot Secret Detection (30+ File Types &amp; Configs)</h2>
+          <div class="grid">
+            <div class="card">
+              <h3>12 Curated Secret Rules (SEC001 - SEC012)</h3>
+              <p>Detects AWS, Google, OpenAI, Stripe, GitHub PAT, Slack, JWT, private keys, database URIs, hardcoded passwords, and generic high-entropy secrets.</p>
+            </div>
+            <div class="card">
+              <h3>Polyglot Lexical &amp; Comment Filtering</h3>
+              <p>Understands Python, JS/TS, Go, Rust, Java, Kotlin, C#, PHP, Ruby, Swift, Shell, YAML, TOML, JSON, .env, .npmrc, and Dockerfile with cross-language env lookups.</p>
+            </div>
+            <div class="card">
+              <h3>Zero Lockfile &amp; Minified Bundle Noise</h3>
+              <p>Automatically skips noisy lockfiles and minified bundles while respecting .sidikignore patterns and # nosec / // nosec / # sidik:ignore inline suppressions.</p>
+            </div>
+            <div class="card">
+              <h3>Triple Interface &amp; 7 Report Formats</h3>
+              <p>Run via One-Shot CLI, Interactive TUI Menu, or High-DPI Bilingual GUI; export Console, SARIF v2.1.0, GitHub Annotations, HTML, Markdown, JSON, and CSV.</p>
+            </div>
+          </div>
+        </section>
 
-    <section>
-      <h2>8-Ecosystem Offline SCA Matrix (19 Manifest &amp; Lockfile Formats)</h2>
-      <table>
-        <thead>
-          <tr>
-            <th>Ecosystem</th>
-            <th>Supported Manifests &amp; Lockfiles</th>
-            <th>Offline Coverage</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td><span class="eco-badge">PyPI</span></td>
-            <td><code>requirements*.txt</code>, <code>pyproject.toml</code>, <code>Pipfile</code>, <code>Pipfile.lock</code>, <code>poetry.lock</code>, <code>uv.lock</code>, <code>setup.py</code></td>
-            <td>35,304 bundled OSV advisories + PEP 440 evaluator</td>
-          </tr>
-          <tr>
-            <td><span class="eco-badge">npm</span></td>
-            <td><code>package.json</code>, <code>package-lock.json</code>, <code>yarn.lock</code>, <code>pnpm-lock.yaml</code></td>
-            <td>Curated offline CVEs + SemVer + SQLite sync</td>
-          </tr>
-          <tr>
-            <td><span class="eco-badge">Go</span></td>
-            <td><code>go.mod</code></td>
-            <td>Curated offline CVEs + <code>v</code> / <code>+incompatible</code> SemVer + SQLite sync</td>
-          </tr>
-          <tr>
-            <td><span class="eco-badge">crates.io</span></td>
-            <td><code>Cargo.toml</code>, <code>Cargo.lock</code></td>
-            <td>Curated offline Rust CVEs + Cargo SemVer + SQLite sync</td>
-          </tr>
-          <tr>
-            <td><span class="eco-badge">Maven</span></td>
-            <td><code>pom.xml</code> (including <code>${property}</code> interpolation)</td>
-            <td>Curated offline Java CVEs (e.g. Log4Shell) + SQLite sync</td>
-          </tr>
-          <tr>
-            <td><span class="eco-badge">Packagist</span></td>
-            <td><code>composer.json</code>, <code>composer.lock</code></td>
-            <td>Curated offline PHP CVEs + SemVer OR/hyphen ranges + SQLite sync</td>
-          </tr>
-          <tr>
-            <td><span class="eco-badge">RubyGems</span></td>
-            <td><code>Gemfile.lock</code></td>
-            <td>Curated offline Ruby CVEs + SQLite sync</td>
-          </tr>
-          <tr>
-            <td><span class="eco-badge">NuGet</span></td>
-            <td><code>*.csproj</code></td>
-            <td>Curated offline .NET CVEs + SQLite sync</td>
-          </tr>
-        </tbody>
-      </table>
-    </section>
+        <section class="chapter" data-chapter="sca" id="sec-sca">
+          <h2>8-Ecosystem Offline SCA Matrix</h2>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Ecosystem</th>
+                  <th>Supported Manifests &amp; Lockfiles</th>
+                  <th>Offline Coverage</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><span class="eco-badge">PyPI</span></td>
+                  <td><code>requirements*.txt</code>, <code>pyproject.toml</code>, <code>Pipfile</code>, <code>Pipfile.lock</code>, <code>poetry.lock</code>, <code>uv.lock</code>, <code>setup.py</code></td>
+                  <td>35,304 bundled OSV advisories + PEP 440 evaluator</td>
+                </tr>
+                <tr>
+                  <td><span class="eco-badge">npm</span></td>
+                  <td><code>package.json</code>, <code>package-lock.json</code>, <code>yarn.lock</code>, <code>pnpm-lock.yaml</code></td>
+                  <td>Curated offline CVEs + SemVer + SQLite sync</td>
+                </tr>
+                <tr>
+                  <td><span class="eco-badge">Go</span></td>
+                  <td><code>go.mod</code></td>
+                  <td>Curated offline CVEs + <code>v</code> / <code>+incompatible</code> SemVer + SQLite sync</td>
+                </tr>
+                <tr>
+                  <td><span class="eco-badge">crates.io</span></td>
+                  <td><code>Cargo.toml</code>, <code>Cargo.lock</code></td>
+                  <td>Curated offline Rust CVEs + Cargo SemVer + SQLite sync</td>
+                </tr>
+                <tr>
+                  <td><span class="eco-badge">Maven</span></td>
+                  <td><code>pom.xml</code> (including <code>${property}</code> interpolation)</td>
+                  <td>Curated offline Java CVEs (e.g. Log4Shell) + SQLite sync</td>
+                </tr>
+                <tr>
+                  <td><span class="eco-badge">Packagist</span></td>
+                  <td><code>composer.json</code>, <code>composer.lock</code></td>
+                  <td>Curated offline PHP CVEs + SemVer OR/hyphen ranges + SQLite sync</td>
+                </tr>
+                <tr>
+                  <td><span class="eco-badge">RubyGems</span></td>
+                  <td><code>Gemfile.lock</code></td>
+                  <td>Curated offline Ruby CVEs + SQLite sync</td>
+                </tr>
+                <tr>
+                  <td><span class="eco-badge">NuGet</span></td>
+                  <td><code>*.csproj</code></td>
+                  <td>Curated offline .NET CVEs + SQLite sync</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
 
-    <section>
-      <h2>Quick Start</h2>
-      <pre><code># Install from PyPI (Core CLI or Desktop GUI edition)
+          <h2 style="margin-top:40px;">Quick Start</h2>
+          <pre><code># Install from PyPI (Core CLI or Desktop GUI edition)
 pip install sidik
 pip install "sidik[gui]"
 
@@ -412,76 +677,106 @@ sidik --target path/to/repo --format sarif --output sidik.sarif
 sidik --update-db --ecosystem npm,go,crates
 sidik --update-db --ecosystem all
 sidik --db-info</code></pre>
-    </section>
+        </section>
 
-    <section>
-      <h2>Verified Empirical Benchmarks (Foundational Release)</h2>
-      <table>
-        <thead>
-          <tr>
-            <th>Benchmark Suite</th>
-            <th>Scale</th>
-            <th>Measured Result</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td><strong>25 Public GitHub Repositories</strong></td>
-            <td>186,876 LOC across 1,193 Python files</td>
-            <td>14 FP (12.84% FPR) in 3.19s (85.7% fewer FPs than Bandit; 3.3x faster than Gitleaks)</td>
-          </tr>
-          <tr>
-            <td><strong>Multi-Manifest PyPI SCA v2</strong></td>
-            <td>200 balanced samples across 39 manifests</td>
-            <td>100/100 TP (Precision 1.00, Recall 1.00, F1 1.00) in 0.33s</td>
-          </tr>
-          <tr>
-            <td><strong>Controlled Secret Ablation</strong></td>
-            <td>100 Python files (50 positive, 50 traps)</td>
-            <td>0 FP, 45 TP (Precision 1.00, Recall 0.90, F1 0.9474, MCC 0.9045)</td>
-          </tr>
-          <tr>
-            <td><strong>Active Memory Overhead</strong></td>
-            <td><code>tracemalloc</code> per-repo profiling</td>
-            <td>0.39 MB average active scan RAM per repository</td>
-          </tr>
-        </tbody>
-      </table>
-    </section>
-
-    <section>
-      <div class="ml-banner">
-        <div>
-          <strong style="color:#fbbf24; font-size:17px;">Need Explainable Non-ANN ML False-Positive Triage?</strong>
-          <p style="margin:6px 0 0; color:#cbd5e1; font-size:14px;">
-            Pair SIDIK with <strong>SIDIK-ML</strong> (<code>pip install sidik-ml</code>) for 5 bundled SHA-256-verified classical ML models, 30 leakage-free features, and fail-safe <code>CRITICAL</code> protection.
-          </p>
-        </div>
-        <a class="btn" style="border-color:#f59e0b; color:#fde68a;" href="https://radityobw.github.io/SIDIK-ML/">Explore SIDIK-ML</a>
-      </div>
-    </section>
-
-    <section>
-      <h2>Latest Releases (Auto-Synced from CHANGELOG.md)</h2>
-      <div class="release-grid">
-        <!-- AUTO_CHANGELOG_START -->
-        <article class="release-card">
-          <div class="release-head">
-            <span class="release-tag">v1.4.0</span>
-            <span class="release-date">2026-11-25</span>
+        <section class="chapter" data-chapter="benchmarks" id="sec-benchmarks">
+          <h2>Verified Empirical Benchmarks</h2>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Benchmark Suite</th>
+                  <th>Scale</th>
+                  <th>Measured Result</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>25 Public GitHub Repositories</strong></td>
+                  <td>186,876 LOC across 1,193 Python files</td>
+                  <td>14 FP (12.84% FPR) in 3.19s (85.7% fewer FPs than Bandit; 3.3x faster than Gitleaks)</td>
+                </tr>
+                <tr>
+                  <td><strong>Multi-Manifest PyPI SCA v2</strong></td>
+                  <td>200 balanced samples across 39 manifests</td>
+                  <td>100/100 TP (Precision 1.00, Recall 1.00, F1 1.00) in 0.33s</td>
+                </tr>
+                <tr>
+                  <td><strong>Controlled Secret Ablation</strong></td>
+                  <td>100 Python files (50 positive, 50 traps)</td>
+                  <td>0 FP, 45 TP (Precision 1.00, Recall 0.90, F1 0.9474, MCC 0.9045)</td>
+                </tr>
+                <tr>
+                  <td><strong>Active Memory Overhead</strong></td>
+                  <td><code>tracemalloc</code> per-repo profiling</td>
+                  <td>0.39 MB average active scan RAM per repository</td>
+                </tr>
+              </tbody>
+            </table>
           </div>
-          <ul>
-            <li>Polyglot secret detection across 30+ languages &amp; configs plus 8-ecosystem offline OSV SCA across 19 manifests.</li>
-          </ul>
-        </article>
-        <!-- AUTO_CHANGELOG_END -->
-      </div>
-    </section>
+
+          <div class="ml-banner">
+            <div>
+              <strong style="color:var(--gold); font-size:17px;">Need Explainable Non-ANN ML False-Positive Triage?</strong>
+              <p style="margin:6px 0 0; color:var(--muted); font-size:14px;">
+                Pair SIDIK with <strong>SIDIK-ML</strong> (<code>pip install sidik-ml</code>) for 5 bundled SHA-256-verified classical ML models, 30 leakage-free features, and fail-safe <code>CRITICAL</code> protection.
+              </p>
+            </div>
+            <a class="btn" style="border-color:var(--banner-border); color:var(--banner-cta-fg);" href="https://radityobw.github.io/SIDIK-ML/">Explore SIDIK-ML</a>
+          </div>
+        </section>
+
+        <section class="chapter" data-chapter="releases" id="sec-releases">
+          <h2>Latest Releases</h2>
+          <div class="release-grid">
+            <!-- AUTO_CHANGELOG_START -->
+            <article class="release-card">
+              <div class="release-head">
+                <span class="release-tag">v1.4.0</span>
+                <span class="release-date">2026-11-25</span>
+              </div>
+              <ul>
+                <li>Polyglot secret detection across 30+ languages &amp; configs plus 8-ecosystem offline OSV SCA across 19 manifests.</li>
+              </ul>
+            </article>
+            <!-- AUTO_CHANGELOG_END -->
+          </div>
+        </section>
+      </main>
+
+      <aside class="vitrine-col" aria-label="Interactive 3D SIDIK Shield">
+        <div id="stage-3d">
+          <div class="stage-hud-top">
+            <span id="stage-chapter">01 Overview</span>
+            <span>Drag to orbit</span>
+          </div>
+          <img class="stage-fallback" src="logo.png" alt="SIDIK Security Scanner Logo" width="156" height="156" />
+          <canvas id="canvas-3d" aria-label="3D Exploded Shield Model for SIDIK"></canvas>
+          <div class="stage-hud-bottom">
+            <span>sidik.glb · 7 layers</span>
+            <span id="stage-explode">Assembled shield</span>
+          </div>
+        </div>
+      </aside>
+    </div>
 
     <footer>
-      <span>SIDIK Security Analyzer - MIT License - <!-- AUTO_UPDATED_START -->Updated 2026-11-25<!-- AUTO_UPDATED_END --></span>
+      <span>SIDIK Security Analyzer · MIT License · <!-- AUTO_UPDATED_START -->Updated 2026-11-25<!-- AUTO_UPDATED_END --></span>
       <span><a href="https://github.com/radityobw/SIDIK">GitHub</a> | <a href="https://pypi.org/project/sidik/">PyPI</a> | <a href="https://github.com/radityobw/SIDIK/releases">Releases</a> | <a href="https://radityobw.github.io/SIDIK-ML/">SIDIK-ML</a></span>
     </footer>
   </div>
+
+  <script>
+    (function(){
+      var btn = document.getElementById('theme-toggle');
+      if (!btn) return;
+      btn.addEventListener('click', function(){
+        var next = document.documentElement.dataset.theme === 'light' ? 'dark' : 'light';
+        document.documentElement.dataset.theme = next;
+        try { localStorage.setItem('radityobw_theme', next); } catch(e) {}
+      });
+    })();
+  </script>
+  <script type="module" src="scene3d.js"></script>
 </body>
 </html>
